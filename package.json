@@ -1,0 +1,35 @@
+{
+  "name": "siakad",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"bun run dev:api\" \"bun run dev:web\" --names api,web --prefix-colors cyan,magenta",
+    "dev:api": "cd apps/api && bun run dev",
+    "dev:web": "cd apps/web && bun run dev",
+    "build:api": "cd apps/api && bun run build",
+    "build:web": "cd apps/web && bun run build",
+    "deploy:api": "cd apps/api && bun run deploy",
+    "deploy:web": "cd apps/web && bun run deploy",
+    "lint:api": "cd apps/api && bun run lint",
+    "lint:web": "cd apps/web && bun run lint",
+    "lint:staged": "lint-staged",
+    "typecheck:api": "cd apps/api && bun run typecheck",
+    "typecheck:web": "cd apps/web && bun run typecheck",
+    "typecheck": "bun run typecheck:api && bun run typecheck:web",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "apps/api/**/*.{ts,tsx,js,jsx}": "bunx eslint --config apps/api/eslint.config.mjs",
+    "apps/web/**/*.{js,jsx,ts,tsx}": "bunx eslint --config apps/web/eslint.config.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "lint-staged": "^16.2.6"
+  },
+  "dependencies": {
+    "husky": "^9.1.7"
+  }
+}

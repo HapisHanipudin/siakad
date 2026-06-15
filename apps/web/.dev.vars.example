@@ -1,0 +1,5 @@
+# Load .env.development* files when running `wrangler dev`
+NEXTJS_ENV=development
+NEXT_PUBLIC_API_URL=http://localhost:8787
+GITHUB_CLIENT_ID=isi_nanti
+NEXTAUTH_SECRET=random_string_panjang

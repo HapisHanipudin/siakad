@@ -1,0 +1,6 @@
+GITHUB_CLIENT_ID=isi_nanti
+GITHUB_CLIENT_SECRET=isi_nanti
+WAKATIME_CLIENT_ID=isi_nanti
+WAKATIME_CLIENT_SECRET=isi_nanti
+NEON_DATABASE_URL=isi_nanti
+JWT_SECRET=random_string_panjang_minimal_32_karakter

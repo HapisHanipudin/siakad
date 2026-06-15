@@ -1,0 +1,49 @@
+name: Database Migrate
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "apps/api/src/db/**"
+      - "apps/api/drizzle.config.ts"
+      - "apps/api/package.json"
+      - "apps/api/drizzle/**"
+      - ".github/workflows/db-migrate.yml"
+  workflow_dispatch:
+    inputs:
+      note:
+        description: "Optional note for the migration run"
+        required: false
+        type: string
+
+jobs:
+  migrate:
+    name: Run Drizzle migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Apply database migrations
+        working-directory: apps/api
+        run: bun run db:migrate
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
