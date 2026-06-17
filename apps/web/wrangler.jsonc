@@ -4,7 +4,7 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "commate-web",
+  "name": "siakad-web",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-04-18",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -22,7 +22,7 @@
       // Self-reference service binding, the service name must match the worker name
       // see https://opennext.js.org/cloudflare/caching
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "commate-web",
+      "service": "siakad-web",
     },
   ],
   "observability": {
@@ -30,7 +30,7 @@
   },
   "upload_source_maps": true,
   "vars": {
-    "NEXT_PUBLIC_API_URL": "https://commate-api.hapishanipudin.workers.dev/",
+    "NEXT_PUBLIC_API_URL": "https://siakad-api.hapishanipudin.workers.dev/",
   },
   /**
    * Smart Placement
