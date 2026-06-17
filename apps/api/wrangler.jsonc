@@ -10,19 +10,14 @@
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "be17a1bf64c2496b9ad7db93e8f6290f",
+      "id": "e508d8cca2bd43799a67fd8e1f0e821a",
 
       // Optional. Can be used to connect to a local database for local development with `wrangler dev`
-      "localConnectionString": "<LOCAL_CONNECTION_STRING_FOR_LOCAL_DEVELOPMENT_HERE>",
+      "localConnectionString": "postgresql://siakad:siakad@127.0.0.1:5432/siakad?sslmode=disable",
     },
   ],
   "vars": {
-    "GITHUB_CLIENT_ID": "",
-    "GITHUB_CLIENT_SECRET": "",
-    "WAKATIME_CLIENT_ID": "",
-    "WAKATIME_CLIENT_SECRET": "",
-    "NEON_DATABASE_URL": "",
     "JWT_SECRET": "",
-    "CORS_ORIGINS": "http://localhost:3000,https://commate-fe.pages.dev,https://*.commate-fe.pages.dev",
+    "CORS_ORIGINS": "http://localhost:3000,https://siakad-fe.pages.dev,https://*.siakad-fe.pages.dev",
   },
 }

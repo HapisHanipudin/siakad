@@ -9,7 +9,7 @@ Aplikasi ini dikembangkan sebagai proyek Ujian Akhir Semester (UAS) mata kuliah 
 SiAkad adalah platform manajemen data akademik perguruan tinggi yang mengelola data **Mahasiswa**, **Dosen**, **Mata Kuliah**, dan pengisian **KRS (Kartu Rencana Studi)**. Proyek ini mendemonstrasikan perancangan basis data relasional serta implementasi operasi CRUD terintegrasi menggunakan Next.js di frontend dan Hono (Cloudflare Workers) di backend.
 
 ```
-Frontend (Next.js)  ↔  API Gateway (Hono)  ↔  Drizzle ORM  ↔  Neon DB (PostgreSQL)
+Frontend (Next.js)  ↔  API Gateway (Hono)  ↔  Drizzle ORM  ↔  PostgreSQL
 ```
 
 ---
@@ -21,7 +21,7 @@ Frontend (Next.js)  ↔  API Gateway (Hono)  ↔  Drizzle ORM  ↔  Neon DB (Pos
 | Frontend | Next.js, Tailwind CSS           |
 | Backend  | Hono on Cloudflare Workers      |
 | ORM      | Drizzle ORM                     |
-| Database | Neon DB (PostgreSQL)            |
+| Database | PostgreSQL (Docker / Neon)      |
 | Deploy   | Cloudflare Workers & Pages      |
 
 ---
@@ -39,7 +39,8 @@ Proyek ini menggunakan struktur monorepo untuk menyatukan frontend, backend, dan
 ### Prasyarat
 - [Bun](https://bun.sh) >= 1.0
 - [Wrangler](https://developers.cloudflare.com/workers/wrangler/) >= 4.0
-- Akun [Cloudflare](https://cloudflare.com) & [Neon DB](https://neon.tech)
+- Akun [Cloudflare](https://cloudflare.com)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) atau Docker Engine
 
 ### Setup Awal
 1. Clone repositori dan instal dependensi di root direktori:
@@ -47,14 +48,19 @@ Proyek ini menggunakan struktur monorepo untuk menyatukan frontend, backend, dan
    bun install
    ```
 
-2. Buat file `.dev.vars` di direktori `apps/api/` berdasarkan `.dev.vars.example` yang tersedia:
+2. Jalankan database PostgreSQL lokal lewat Docker Compose:
+   ```bash
+   docker compose up -d db
+   ```
+
+3. Buat file `.dev.vars` di direktori `apps/api/` berdasarkan `.dev.vars.example` yang tersedia:
    ```env
-   NEON_DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"
+   DATABASE_URL="postgresql://siakad:siakad@127.0.0.1:5432/siakad?sslmode=disable"
    JWT_SECRET="rahasia-super-aman"
    CORS_ORIGINS="http://localhost:3000"
    ```
 
-3. Jalankan server development secara paralel (menjalankan API di port `8787` dan Web di port `3000`):
+4. Jalankan server development secara paralel (menjalankan API di port `8787` dan Web di port `3000`):
    ```bash
    bun run dev
    ```
@@ -62,7 +68,7 @@ Proyek ini menggunakan struktur monorepo untuk menyatukan frontend, backend, dan
 ---
 
 ## Sinkronisasi Database (Drizzle ORM)
-Untuk melakukan perubahan schema dan migrasi database ke Neon DB, masuk ke direktori backend:
+Untuk melakukan perubahan schema dan migrasi database ke PostgreSQL lokal, masuk ke direktori backend:
 
 ```bash
 cd apps/api
@@ -70,7 +76,7 @@ cd apps/api
 # 1. Generate file migrasi SQL berdasarkan schema.ts
 bun run db:generate
 
-# 2. Jalankan migrasi SQL ke database Neon DB
+# 2. Jalankan migrasi SQL ke database lokal
 bun run db:migrate
 
 # 3. Sinkronisasi schema langsung (sangat cepat untuk fase development)

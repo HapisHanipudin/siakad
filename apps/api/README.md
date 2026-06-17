@@ -33,7 +33,7 @@ bun run db:studio
 
 Pastikan variabel di bawah tersedia di `.dev.vars` atau `.env`:
 
-- `NEON_DATABASE_URL`
+- `DATABASE_URL` untuk local development dan Drizzle Kit
 - `HYPERDRIVE.connectionString` untuk koneksi runtime di Cloudflare Workers
 - `JWT_SECRET`
 - `GITHUB_CLIENT_ID`
@@ -42,4 +42,4 @@ Pastikan variabel di bawah tersedia di `.dev.vars` atau `.env`:
 - `WAKATIME_CLIENT_SECRET`
 - `CORS_ORIGINS` (comma-separated, support wildcard `*.`)
 
-Catatan: migrasi lokal masih memakai `NEON_DATABASE_URL`, sedangkan runtime API akan memakai `HYPERDRIVE.connectionString` jika binding Hyperdrive tersedia.
+Catatan: runtime API akan memakai `HYPERDRIVE.connectionString` jika binding Hyperdrive tersedia, dan fallback ke `DATABASE_URL` atau `NEON_DATABASE_URL` bila diperlukan.

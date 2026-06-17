@@ -1,6 +1,3 @@
-GITHUB_CLIENT_ID=isi_nanti
-GITHUB_CLIENT_SECRET=isi_nanti
-WAKATIME_CLIENT_ID=isi_nanti
-WAKATIME_CLIENT_SECRET=isi_nanti
-NEON_DATABASE_URL=isi_nanti
+DATABASE_URL=postgresql://siakad:siakad@127.0.0.1:5432/siakad?sslmode=disable
 JWT_SECRET=random_string_panjang_minimal_32_karakter
+CORS_ORIGINS=http://localhost:3000

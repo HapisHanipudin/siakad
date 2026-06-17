@@ -1,15 +1,12 @@
 import { z } from "zod";
 
+const databaseUrlSchema = z.url({
+  message: "DATABASE_URL atau NEON_DATABASE_URL harus berupa URL valid",
+});
+
 export const envSchema = z.object({
-  GITHUB_CLIENT_ID: z.string().min(1, "GITHUB_CLIENT_ID wajib diisi"),
-  GITHUB_CLIENT_SECRET: z.string().min(1, "GITHUB_CLIENT_SECRET wajib diisi"),
-  WAKATIME_CLIENT_ID: z.string().min(1, "WAKATIME_CLIENT_ID wajib diisi"),
-  WAKATIME_CLIENT_SECRET: z
-    .string()
-    .min(1, "WAKATIME_CLIENT_SECRET wajib diisi"),
-  NEON_DATABASE_URL: z.url({
-    message: "NEON_DATABASE_URL harus berupa URL valid",
-  }),
+  DATABASE_URL: databaseUrlSchema.optional(),
+  NEON_DATABASE_URL: databaseUrlSchema.optional(),
   HYPERDRIVE: z
     .object({
       connectionString: z
@@ -50,6 +47,17 @@ export const getValidatedEnv = (bindings: unknown): Env => {
       .join(", ");
 
     throw new Error(`Invalid environment variables: ${detail}`);
+  }
+
+  const databaseConnectionString =
+    parsed.data.HYPERDRIVE?.connectionString ??
+    parsed.data.DATABASE_URL ??
+    parsed.data.NEON_DATABASE_URL;
+
+  if (!databaseConnectionString) {
+    throw new Error(
+      "Salah satu dari HYPERDRIVE.connectionString, DATABASE_URL, atau NEON_DATABASE_URL wajib diisi",
+    );
   }
 
   cachedEnv = {
