@@ -11,7 +11,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/scripts/migrate.ts",
+    "db:migrate": "node-pg-migrate up --envPath .dev.vars -j ts",
+    "db:migrate:down": "node-pg-migrate down --envPath .dev.vars -j ts",
+    "db:migrate:create": "node-pg-migrate create --envPath .dev.vars -j ts",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },
@@ -27,11 +29,12 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "latest",
+    "@types/pg": "^8.20.0",
     "@typescript-eslint/eslint-plugin": "^8",
     "@typescript-eslint/parser": "^8",
-    "@types/pg": "^8.20.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
+    "node-pg-migrate": "^8.0.4",
     "tsx": "^4.21.0",
     "typescript": "latest",
     "wrangler": "latest"
