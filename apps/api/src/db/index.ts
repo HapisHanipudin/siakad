@@ -1,5 +1,4 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import pg from "pg";
 import type { Env } from "../env";
 import * as schema from "./schema";
 
@@ -13,8 +12,15 @@ export function createDb(env: Env) {
     throw new Error("Database connection string tidak tersedia");
   }
 
-  const sql = neon(connectionString);
-  return drizzle(sql, { schema });
+  const client = new pg.Client({
+    connectionString,
+    ssl: connectionString.includes("neon.tech")
+      ? { rejectUnauthorized: false }
+      : undefined,
+  });
+
+  return client;
 }
 
 export { schema };
+
