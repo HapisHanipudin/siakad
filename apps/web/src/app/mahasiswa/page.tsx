@@ -242,6 +242,58 @@ export default function MahasiswaPortal() {
 
           {/* List Mahasiswa & Detail Live */}
           <div className="lg:col-span-2 space-y-8">
+            {/* Tagihan & Pembayaran (Skenario 3) */}
+            {selectedMhs && (
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <h2 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                  <span>💰</span> Status Keuangan: {selectedMhs.nama_mahasiswa}
+                </h2>
+                <p className="text-xs text-slate-400 mb-6 font-mono">NIM: {selectedMhs.nim}</p>
+
+                {tagihanLoading ? (
+                  <p className="text-sm text-slate-400">Memuat info tagihan...</p>
+                ) : tagihan.length === 0 ? (
+                  <p className="text-sm text-slate-500">Tidak ada tagihan aktif untuk mahasiswa ini.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {tagihan.map((t) => (
+                      <div
+                        key={t.id_tagihan}
+                        className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase">
+                              {t.tipe_tagihan}
+                            </span>
+                            <span className="text-xs text-slate-400">Semester {t.semester_aktif} ({t.nama_tahun_ajaran || "2025/2026"})</span>
+                          </div>
+                          <p className="text-lg font-extrabold text-slate-800 mt-2">
+                            Rp {Number(t.nominal || 0).toLocaleString("id-ID")}
+                          </p>
+                          <p className="text-xs text-slate-400 mt-1">Tenggat Pembayaran: {t.tenggat ? new Date(t.tenggat).toLocaleDateString("id-ID") : "-"}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`px-3 py-1 text-xs font-bold rounded-full ${t.status_tagihan === 'lunas' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                            {t.status_tagihan === 'lunas' ? '✅ Lunas' : '❌ Belum Bayar'}
+                          </span>
+
+                          {t.status_tagihan !== 'lunas' && (
+                            <button
+                              onClick={() => handleBayarUKT(t.id_tagihan, t.nominal)}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-sm"
+                            >
+                              Bayar UKT Live
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
               <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
                 <span>👥</span> Database Mahasiswa Live
@@ -319,58 +371,6 @@ export default function MahasiswaPortal() {
                 </div>
               )}
             </div>
-
-            {/* Tagihan & Pembayaran (Skenario 3) */}
-            {selectedMhs && (
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <h2 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
-                  <span>💰</span> Status Keuangan: {selectedMhs.nama_mahasiswa}
-                </h2>
-                <p className="text-xs text-slate-400 mb-6 font-mono">NIM: {selectedMhs.nim}</p>
-
-                {tagihanLoading ? (
-                  <p className="text-sm text-slate-400">Memuat info tagihan...</p>
-                ) : tagihan.length === 0 ? (
-                  <p className="text-sm text-slate-500">Tidak ada tagihan aktif untuk mahasiswa ini.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {tagihan.map((t) => (
-                      <div
-                        key={t.id_tagihan}
-                        className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase">
-                              {t.tipe_tagihan}
-                            </span>
-                            <span className="text-xs text-slate-400">Semester {t.semester_aktif} ({t.nama_tahun_ajaran || "2025/2026"})</span>
-                          </div>
-                          <p className="text-lg font-extrabold text-slate-800 mt-2">
-                            Rp {Number(t.nominal || 0).toLocaleString("id-ID")}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-1">Tenggat Pembayaran: {t.tenggat ? new Date(t.tenggat).toLocaleDateString("id-ID") : "-"}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className={`px-3 py-1 text-xs font-bold rounded-full ${t.status_tagihan === 'lunas' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
-                            {t.status_tagihan === 'lunas' ? '✅ Lunas' : '❌ Belum Bayar'}
-                          </span>
-
-                          {t.status_tagihan !== 'lunas' && (
-                            <button
-                              onClick={() => handleBayarUKT(t.id_tagihan, t.nominal)}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-sm"
-                            >
-                              Bayar UKT Live
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
