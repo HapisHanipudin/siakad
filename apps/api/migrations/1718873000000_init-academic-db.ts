@@ -1,6 +1,10 @@
 import { MigrationBuilder } from "node-pg-migrate";
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const up = (pgm: MigrationBuilder): void => {
   const sqlPath = path.resolve(__dirname, "../../../query/ddl_postgres.sql");
