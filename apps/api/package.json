@@ -15,7 +15,8 @@
     "db:migrate:down": "node-pg-migrate down --envPath .dev.vars -j ts",
     "db:migrate:create": "node-pg-migrate create --envPath .dev.vars -j ts",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx src/scripts/seed_large.ts"
   },
   "dependencies": {
     "@hono/zod-openapi": "^0.19.10",
