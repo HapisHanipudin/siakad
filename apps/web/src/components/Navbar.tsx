@@ -18,11 +18,17 @@ export default function Navbar() {
           <Link href="/" className="hover:text-indigo-600 transition-colors no-underline">
             Beranda
           </Link>
-          <Link href="/about" className="hover:text-indigo-600 transition-colors no-underline">
-            Tentang
+          <Link href="/mahasiswa" className="hover:text-indigo-600 transition-colors no-underline">
+            Mahasiswa
           </Link>
-          <Link href="/contact" className="hover:text-indigo-600 transition-colors no-underline">
-            Bantuan
+          <Link href="/krs" className="hover:text-indigo-600 transition-colors no-underline">
+            KRS
+          </Link>
+          <Link href="/dosen" className="hover:text-indigo-600 transition-colors no-underline">
+            Dosen
+          </Link>
+          <Link href="/admin" className="hover:text-indigo-600 transition-colors no-underline">
+            Admin (Kelas)
           </Link>
         </div>
       </div>
