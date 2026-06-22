@@ -42,26 +42,19 @@ export default function MahasiswaPortal() {
   const fetchTagihan = async (id_mahasiswa: number) => {
     setTagihanLoading(true);
     try {
-      // Kita bisa buat endpoint tagihan di backend atau query langsung
-      // Di sini kita query endpoint tagihan via general / pembayaran atau check mock
-      // Untuk kemudahan, mari kita mock data tagihan live dari db atau fetch via query
-      const res = await fetch(`${API_URL}/krs/${id_mahasiswa}`);
-      // KRS endpoint mengembalikan KRS data. Kita juga bisa fetch krs details.
-      // Namun, untuk tagihan, mari kita fetch tagihan mahasiswa. Kita belum buat GET /tagihan di backend.
-      // Mari kita buat endpoint GET /tagihan/:mahasiswaId di backend agar real-time!
-      // Sementara itu, mari kita fetch tagihan dari endpoint pembayaran/tagihan di backend.
-      // Wait, let's look at the database. We can write a quick custom endpoint or query it.
-      // Let's create a tagihan endpoint in apps/api/src/modules/pembayaran/index.ts!
-      // Yes, we will add an endpoint GET /tagihan/:mahasiswaId.
+      console.log(`Fetching tagihan for student ID: ${id_mahasiswa}`);
       const tRes = await fetch(`${API_URL}/tagihan/${id_mahasiswa}`);
+      console.log("Fetch tagihan response status:", tRes.status);
       if (tRes.ok) {
         const tData = await tRes.json() as any;
+        console.log("Fetch tagihan data:", tData);
         setTagihan(tData);
       } else {
+        console.warn("Fetch tagihan returned not OK:", tRes.statusText);
         setTagihan([]);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Error in fetchTagihan:", err);
       setTagihan([]);
     } finally {
       setTagihanLoading(false);
@@ -313,9 +306,9 @@ export default function MahasiswaPortal() {
                             <span className="text-xs text-slate-400">Semester {t.semester_aktif} ({t.nama_tahun_ajaran || "2025/2026"})</span>
                           </div>
                           <p className="text-lg font-extrabold text-slate-800 mt-2">
-                            Rp {t.nominal.toLocaleString("id-ID")}
+                            Rp {Number(t.nominal || 0).toLocaleString("id-ID")}
                           </p>
-                          <p className="text-xs text-slate-400 mt-1">Tenggat Pembayaran: {new Date(t.tenggat).toLocaleDateString("id-ID")}</p>
+                          <p className="text-xs text-slate-400 mt-1">Tenggat Pembayaran: {t.tenggat ? new Date(t.tenggat).toLocaleDateString("id-ID") : "-"}</p>
                         </div>
                         <div className="flex items-center gap-3">
                           <span className={`px-3 py-1 text-xs font-bold rounded-full ${t.status_tagihan === 'lunas' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
