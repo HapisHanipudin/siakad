@@ -1,17 +1,27 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-const MahasiswaSchema = z.object({
-  id: z.string(),
-  nama: z.string(),
-  email: z.string().email(),
-  role: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+const MahasiswaResponseSchema = z.object({
+  id_mahasiswa: z.number(),
+  nim: z.string(),
+  nama_mahasiswa: z.string(),
+  status_mahasiswa: z.string(),
+  angkatan: z.number(),
+  id_program_studi: z.number(),
+  id_kurikulum: z.number(),
+  id_kelompok: z.number(),
+  nama_prodi: z.string().optional(),
+  email: z.string().optional(),
 });
 
 const CreateMahasiswaSchema = z.object({
-  nama: z.string().min(1, "Nama tidak boleh kosong"),
+  nim: z.string().min(1, "NIM wajib diisi"),
+  nama_mahasiswa: z.string().min(1, "Nama wajib diisi"),
   email: z.string().email("Format email tidak valid"),
+  id_program_studi: z.number().default(1),
+  id_kurikulum: z.number().default(1),
+  id_kelompok: z.number().default(1),
+  angkatan: z.number().default(2025),
+  password: z.string().min(6, "Password minimal 6 karakter"),
 });
 
 export const getMahasiswaRoute = createRoute({
@@ -24,7 +34,7 @@ export const getMahasiswaRoute = createRoute({
       description: "Daftar mahasiswa",
       content: {
         "application/json": {
-          schema: z.array(MahasiswaSchema),
+          schema: z.array(MahasiswaResponseSchema),
         },
       },
     },
@@ -35,7 +45,7 @@ export const createMahasiswaRoute = createRoute({
   method: "post",
   path: "/mahasiswa",
   tags: ["Mahasiswa"],
-  summary: "Tambah mahasiswa baru",
+  summary: "Daftar mahasiswa baru (Skenario 6)",
   request: {
     body: {
       content: {
@@ -47,15 +57,15 @@ export const createMahasiswaRoute = createRoute({
   },
   responses: {
     201: {
-      description: "Mahasiswa berhasil dibuat",
+      description: "Mahasiswa berhasil didaftarkan beserta akun dan tagihan UKT",
       content: {
         "application/json": {
-          schema: MahasiswaSchema,
+          schema: MahasiswaResponseSchema,
         },
       },
     },
     400: {
-      description: "Input tidak valid",
+      description: "Input tidak valid / email atau NIM duplikat",
       content: {
         "application/json": {
           schema: z.object({

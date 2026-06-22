@@ -2,7 +2,7 @@ import type { RouteHandler } from "@hono/zod-openapi";
 import { createDb } from "../../db";
 import { getValidatedEnv } from "../../env";
 import type { AppEnv } from "../../factory";
-import { getDosenRoute, createDosenRoute } from "./dosen.routes";
+import { getDosenRoute, createDosenRoute, getBimbinganRoute } from "./dosen.routes";
 
 export const getDosenHandler: RouteHandler<
   typeof getDosenRoute,
@@ -13,23 +13,53 @@ export const getDosenHandler: RouteHandler<
 
   await client.connect();
   try {
-    const result = await client.query(
-      "SELECT id, nama, email, role, created_at, updated_at FROM users WHERE role = $1",
-      ["dosen"]
-    );
-    const list = result.rows;
+    const result = await client.query(`
+      SELECT 
+        d.id_dosen, 
+        d.nidn, 
+        d.nama_dosen, 
+        d.gelar, 
+        d.id_fakultas, 
+        f.nama_fakultas, 
+        u.email 
+      FROM dosen d 
+      LEFT JOIN fakultas f ON d.id_fakultas = f.id_fakultas 
+      LEFT JOIN users u ON d.id_dosen = u.id_dosen
+      ORDER BY d.id_dosen DESC
+    `);
+    
+    return c.json(result.rows, 200);
+  } finally {
+    await client.end();
+  }
+};
 
-    return c.json(
-      list.map((u) => ({
-        id: u.id,
-        nama: u.nama,
-        email: u.email,
-        role: u.role,
-        createdAt: new Date(u.created_at).toISOString(),
-        updatedAt: new Date(u.updated_at).toISOString(),
-      })),
-      200,
-    );
+export const getBimbinganHandler: RouteHandler<
+  typeof getBimbinganRoute,
+  AppEnv
+> = async (c) => {
+  const env = getValidatedEnv(c.env);
+  const client = createDb(env);
+  const id_dosen = parseInt(c.req.param("id_dosen"), 10);
+
+  await client.connect();
+  try {
+    const result = await client.query(`
+      SELECT 
+        m.id_mahasiswa, 
+        m.nim, 
+        m.nama_mahasiswa, 
+        m.status_mahasiswa, 
+        m.angkatan, 
+        ps.nama_prodi
+      FROM mahasiswa m 
+      JOIN kelompok k ON m.id_kelompok = k.id_kelompok 
+      JOIN program_studi ps ON m.id_program_studi = ps.id_program_studi 
+      WHERE k.id_dosen = $1
+      ORDER BY m.id_mahasiswa ASC
+    `, [id_dosen]);
+    
+    return c.json(result.rows, 200);
   } finally {
     await client.end();
   }
@@ -41,37 +71,50 @@ export const createDosenHandler: RouteHandler<
 > = async (c) => {
   const env = getValidatedEnv(c.env);
   const client = createDb(env);
-  const { nama, email } = c.req.valid("json");
+  const { nidn, nama_dosen, gelar, email, id_fakultas, password } = c.req.valid("json");
 
   await client.connect();
   try {
-    const id = `dsn-${crypto.randomUUID().slice(0, 8)}`;
-    const result = await client.query(
-      "INSERT INTO users (id, nama, email, role) VALUES ($1, $2, $3, $4) RETURNING id, nama, email, role, created_at, updated_at",
-      [id, nama, email, "dosen"]
-    );
-    const newUser = result.rows[0];
+    await client.query("BEGIN");
 
-    return c.json(
-      {
-        id: newUser.id,
-        nama: newUser.nama,
-        email: newUser.email,
-        role: newUser.role,
-        createdAt: new Date(newUser.created_at).toISOString(),
-        updatedAt: new Date(newUser.updated_at).toISOString(),
-      },
-      201,
-    );
+    // 1. Insert ke tabel dosen
+    const dosenResult = await client.query(`
+      INSERT INTO dosen (id_fakultas, nidn, nama_dosen, gelar)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id_dosen, nidn, nama_dosen, gelar, id_fakultas
+    `, [id_fakultas, nidn, nama_dosen, gelar]);
+    const newDosen = dosenResult.rows[0];
+
+    // 2. Insert ke tabel users
+    const userResult = await client.query(`
+      INSERT INTO users (id_mahasiswa, id_dosen, email, password, role)
+      VALUES (NULL, $1, $2, $3, 'dosen')
+      RETURNING email
+    `, [newDosen.id_dosen, email, password]);
+    const newUser = userResult.rows[0];
+
+    // 3. Catat log aktivitas
+    await client.query(`
+      INSERT INTO log_aktivitas (id_user, ip_address, aktivitas)
+      VALUES ((SELECT id_user FROM users WHERE email = $1), $2, $3)
+    `, [email, "127.0.0.1", `Pembuatan dosen baru: ${newDosen.nidn} - ${newDosen.nama_dosen}`]);
+
+    await client.query("COMMIT");
+
+    return c.json({
+      id_dosen: newDosen.id_dosen,
+      nidn: newDosen.nidn,
+      nama_dosen: newDosen.nama_dosen,
+      gelar: newDosen.gelar,
+      id_fakultas: newDosen.id_fakultas,
+      email: newUser.email,
+    }, 201);
   } catch (error: any) {
-    return c.json(
-      {
-        message: error.message || "Gagal membuat dosen baru",
-      },
-      400,
-    );
+    await client.query("ROLLBACK");
+    return c.json({
+      message: error.message || "Gagal membuat dosen baru",
+    }, 400);
   } finally {
     await client.end();
   }
 };
-

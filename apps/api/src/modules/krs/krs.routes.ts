@@ -1,35 +1,44 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-const KrsSchema = z.object({
-  id: z.string(),
-  mahasiswaId: z.string(),
-  tahunAjaran: z.string(),
-  semester: z.string(),
-  mataKuliah: z.array(
-    z.object({
-      kodeMk: z.string(),
-      namaMk: z.string(),
-      sks: z.number(),
-    }),
-  ),
-  createdAt: z.string(),
+const KrsDetailSchema = z.object({
+  id_detail_krs: z.number(),
+  id_krs: z.number(),
+  id_kelas: z.number(),
+  nilai_tugas: z.number(),
+  nilai_uts: z.number(),
+  nilai_uas: z.number(),
+  nilai_akhir_angka: z.number(),
+  nilai_akhir_huruf: z.string().nullable(),
+  kode_kelas: z.string().optional(),
+  nama_mata_kuliah: z.string().optional(),
+  sks: z.number().optional(),
+  nama_dosen: z.string().optional(),
 });
 
-const CreateKrsSchema = z.object({
-  mahasiswaId: z.string().min(1, "ID Mahasiswa wajib diisi"),
-  tahunAjaran: z.string().min(1, "Tahun ajaran wajib diisi"),
-  semester: z.string().min(1, "Semester wajib diisi"),
-  mataKuliahIds: z.array(z.string()).min(1, "Pilih minimal satu mata kuliah"),
+const KrsResponseSchema = z.object({
+  id_krs: z.number(),
+  id_mahasiswa: z.number(),
+  id_tahun_ajaran: z.number(),
+  nama_tahun_ajaran: z.string().optional(),
+  semester_aktif: z.string(),
+  status_krs: z.string(),
+  catatan: z.string().nullable(),
+  detail: z.array(KrsDetailSchema),
+});
+
+const SubmitKrsSchema = z.object({
+  id_mahasiswa: z.number(),
+  id_kelas_list: z.array(z.number()).min(1, "Pilih minimal satu kelas"),
 });
 
 export const getKrsRoute = createRoute({
   method: "get",
-  path: "/krs/{mahasiswaId}",
+  path: "/krs/{id_mahasiswa}",
   tags: ["KRS"],
-  summary: "Dapatkan KRS mahasiswa berdasarkan ID",
+  summary: "Dapatkan KRS mahasiswa",
   request: {
     params: z.object({
-      mahasiswaId: z.string(),
+      id_mahasiswa: z.string(),
     }),
   },
   responses: {
@@ -37,7 +46,7 @@ export const getKrsRoute = createRoute({
       description: "Data KRS mahasiswa",
       content: {
         "application/json": {
-          schema: KrsSchema,
+          schema: KrsResponseSchema,
         },
       },
     },
@@ -56,24 +65,68 @@ export const getKrsRoute = createRoute({
 
 export const createKrsRoute = createRoute({
   method: "post",
-  path: "/krs",
+  path: "/krs/submit",
   tags: ["KRS"],
-  summary: "Input/Submit KRS baru",
+  summary: "Pengajuan & Persetujuan KRS Baru (Skenario 1)",
   request: {
     body: {
       content: {
         "application/json": {
-          schema: CreateKrsSchema,
+          schema: SubmitKrsSchema,
         },
       },
     },
   },
   responses: {
     201: {
-      description: "KRS berhasil disimpan",
+      description: "KRS berhasil diajukan dan disahkan",
       content: {
         "application/json": {
-          schema: KrsSchema,
+          schema: KrsResponseSchema,
+        },
+      },
+    },
+    400: {
+      description: "Gagal memproses KRS (kuota habis, prasyarat kurang, dll)",
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+    },
+  },
+});
+
+export const cancelKrsRoute = createRoute({
+  method: "delete",
+  path: "/krs/{id_krs}",
+  tags: ["KRS"],
+  summary: "Pembatalan KRS Mahasiswa (Skenario 5)",
+  request: {
+    params: z.object({
+      id_krs: z.string(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "KRS berhasil dibatalkan",
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+    },
+    400: {
+      description: "Gagal membatalkan KRS (KRS sudah disahkan/sah)",
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z.string(),
+          }),
         },
       },
     },

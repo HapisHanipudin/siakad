@@ -1,17 +1,31 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-const DosenSchema = z.object({
-  id: z.string(),
-  nama: z.string(),
-  email: z.string().email(),
-  role: z.string(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+const DosenResponseSchema = z.object({
+  id_dosen: z.number(),
+  nidn: z.string(),
+  nama_dosen: z.string(),
+  gelar: z.string(),
+  id_fakultas: z.number(),
+  nama_fakultas: z.string().optional(),
+  email: z.string().optional(),
+});
+
+const BimbinganMahasiswaSchema = z.object({
+  id_mahasiswa: z.number(),
+  nim: z.string(),
+  nama_mahasiswa: z.string(),
+  status_mahasiswa: z.string(),
+  angkatan: z.number(),
+  nama_prodi: z.string(),
 });
 
 const CreateDosenSchema = z.object({
-  nama: z.string().min(1, "Nama tidak boleh kosong"),
+  nidn: z.string().min(1, "NIDN tidak boleh kosong"),
+  nama_dosen: z.string().min(1, "Nama tidak boleh kosong"),
+  gelar: z.enum(["D3", "D4", "S1", "S2", "S3"]),
   email: z.string().email("Format email tidak valid"),
+  id_fakultas: z.number().default(1),
+  password: z.string().min(6, "Password minimal 6 karakter"),
 });
 
 export const getDosenRoute = createRoute({
@@ -24,7 +38,29 @@ export const getDosenRoute = createRoute({
       description: "Daftar dosen",
       content: {
         "application/json": {
-          schema: z.array(DosenSchema),
+          schema: z.array(DosenResponseSchema),
+        },
+      },
+    },
+  },
+});
+
+export const getBimbinganRoute = createRoute({
+  method: "get",
+  path: "/dosen/bimbingan/{id_dosen}",
+  tags: ["Dosen"],
+  summary: "Dapatkan mahasiswa bimbingan dosen wali",
+  request: {
+    params: z.object({
+      id_dosen: z.string(),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Daftar mahasiswa bimbingan",
+      content: {
+        "application/json": {
+          schema: z.array(BimbinganMahasiswaSchema),
         },
       },
     },
@@ -50,12 +86,12 @@ export const createDosenRoute = createRoute({
       description: "Dosen berhasil dibuat",
       content: {
         "application/json": {
-          schema: DosenSchema,
+          schema: DosenResponseSchema,
         },
       },
     },
     400: {
-      description: "Input tidak valid",
+      description: "Input tidak valid / NIDN atau email duplikat",
       content: {
         "application/json": {
           schema: z.object({

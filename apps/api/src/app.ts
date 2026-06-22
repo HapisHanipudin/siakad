@@ -2,9 +2,13 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { getValidatedEnv } from "./env";
 import { createRouter } from "./factory";
 import { corsMiddleware } from "./middlewares/cors";
+import { createDb } from "./db";
 import { mahasiswaRoutes } from "./modules/mahasiswa";
 import { dosenRoutes } from "./modules/dosen";
 import { krsRoutes } from "./modules/krs";
+import { kelasRoutes } from "./modules/kelas";
+import { nilaiRoutes } from "./modules/nilai";
+import { pembayaranRoutes } from "./modules/pembayaran";
 
 const app = createRouter();
 
@@ -22,6 +26,38 @@ app.use("*", async (c, next) => {
 app.route("/", mahasiswaRoutes);
 app.route("/", dosenRoutes);
 app.route("/", krsRoutes);
+app.route("/", kelasRoutes);
+app.route("/", nilaiRoutes);
+app.route("/", pembayaranRoutes);
+
+app.get("/dashboard-stats", async (c) => {
+  const env = getValidatedEnv(c.env);
+  const client = createDb(env);
+  await client.connect();
+  try {
+    const mRes = await client.query("SELECT COUNT(*) FROM mahasiswa");
+    const dRes = await client.query("SELECT COUNT(*) FROM dosen");
+    const kRes = await client.query("SELECT COUNT(*) FROM kelas");
+    
+    const aRes = await client.query(`
+      SELECT isi_pengumuman, tanggal_dibuat 
+      FROM pengumuman 
+      ORDER BY id_pengumuman DESC 
+      LIMIT 3
+    `);
+
+    return c.json({
+      totalMahasiswa: parseInt(mRes.rows[0].count, 10),
+      totalDosen: parseInt(dRes.rows[0].count, 10),
+      totalKelas: parseInt(kRes.rows[0].count, 10),
+      announcements: aRes.rows,
+    }, 200);
+  } catch (error: any) {
+    return c.json({ message: error.message || "Failed to load dashboard stats" }, 500);
+  } finally {
+    await client.end();
+  }
+});
 
 const docRoute = createRoute({
   method: "get",
