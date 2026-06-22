@@ -272,33 +272,38 @@ async function seed() {
 
     // 13. Detail KRS (200 rows)
     console.log("⏳ Seeding detail KRS...");
+    await client.query("ALTER TABLE detail_krs DISABLE TRIGGER trg_cek_prasyarat;");
     const idDetailKrses: number[] = [];
-    for (let i = 0; i < 100; i++) {
-      const krsId = idKrses[i];
-      const cls1 = idKelases[i % 50];
-      const cls2 = idKelases[50 + (i % 50)];
+    try {
+      for (let i = 0; i < 100; i++) {
+        const krsId = idKrses[i];
+        const cls1 = idKelases[i % 50];
+        const cls2 = idKelases[50 + (i % 50)];
 
-      const tugas1 = (60 + Math.random() * 35).toFixed(2);
-      const uts1 = (60 + Math.random() * 35).toFixed(2);
-      const uas1 = (60 + Math.random() * 35).toFixed(2);
+        const tugas1 = (60 + Math.random() * 35).toFixed(2);
+        const uts1 = (60 + Math.random() * 35).toFixed(2);
+        const uas1 = (60 + Math.random() * 35).toFixed(2);
 
-      const tugas2 = (60 + Math.random() * 35).toFixed(2);
-      const uts2 = (60 + Math.random() * 35).toFixed(2);
-      const uas2 = (60 + Math.random() * 35).toFixed(2);
+        const tugas2 = (60 + Math.random() * 35).toFixed(2);
+        const uts2 = (60 + Math.random() * 35).toFixed(2);
+        const uas2 = (60 + Math.random() * 35).toFixed(2);
 
-      const res1 = await client.query(`
-        INSERT INTO detail_krs (id_krs, id_kelas, nilai_tugas, nilai_uts, nilai_uas)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id_detail_krs;
-      `, [krsId, cls1, tugas1, uts1, uas1]);
-      idDetailKrses.push(res1.rows[0].id_detail_krs);
+        const res1 = await client.query(`
+          INSERT INTO detail_krs (id_krs, id_kelas, nilai_tugas, nilai_uts, nilai_uas)
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING id_detail_krs;
+        `, [krsId, cls1, tugas1, uts1, uas1]);
+        idDetailKrses.push(res1.rows[0].id_detail_krs);
 
-      const res2 = await client.query(`
-        INSERT INTO detail_krs (id_krs, id_kelas, nilai_tugas, nilai_uts, nilai_uas)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id_detail_krs;
-      `, [krsId, cls2, tugas2, uts2, uas2]);
-      idDetailKrses.push(res2.rows[0].id_detail_krs);
+        const res2 = await client.query(`
+          INSERT INTO detail_krs (id_krs, id_kelas, nilai_tugas, nilai_uts, nilai_uas)
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING id_detail_krs;
+        `, [krsId, cls2, tugas2, uts2, uas2]);
+        idDetailKrses.push(res2.rows[0].id_detail_krs);
+      }
+    } finally {
+      await client.query("ALTER TABLE detail_krs ENABLE TRIGGER trg_cek_prasyarat;");
     }
 
     // 14. Pertemuan (100 rows)
