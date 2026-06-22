@@ -4,8 +4,8 @@ import * as schema from "./schema";
 
 export function createDb(env: Env) {
   const connectionString =
-    env.HYPERDRIVE?.connectionString ??
     env.DATABASE_URL ??
+    env.HYPERDRIVE?.connectionString ??
     env.NEON_DATABASE_URL;
 
   if (!connectionString) {

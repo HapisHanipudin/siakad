@@ -50,8 +50,8 @@ export const getValidatedEnv = (bindings: unknown): Env => {
   }
 
   const databaseConnectionString =
-    parsed.data.HYPERDRIVE?.connectionString ??
     parsed.data.DATABASE_URL ??
+    parsed.data.HYPERDRIVE?.connectionString ??
     parsed.data.NEON_DATABASE_URL;
 
   if (!databaseConnectionString) {
