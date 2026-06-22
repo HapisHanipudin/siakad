@@ -24,17 +24,33 @@ const CreateMahasiswaSchema = z.object({
   password: z.string().min(6, "Password minimal 6 karakter"),
 });
 
+const PaginatedMahasiswaSchema = z.object({
+  data: z.array(MahasiswaResponseSchema),
+  meta: z.object({
+    total: z.number(),
+    page: z.number(),
+    limit: z.number(),
+    totalPages: z.number(),
+  }),
+});
+
 export const getMahasiswaRoute = createRoute({
   method: "get",
   path: "/mahasiswa",
   tags: ["Mahasiswa"],
-  summary: "Dapatkan daftar mahasiswa",
+  summary: "Dapatkan daftar mahasiswa dengan paginasi",
+  request: {
+    query: z.object({
+      page: z.string().optional().default("1"),
+      limit: z.string().optional().default("10"),
+    }),
+  },
   responses: {
     200: {
-      description: "Daftar mahasiswa",
+      description: "Daftar mahasiswa terpaginasi",
       content: {
         "application/json": {
-          schema: z.array(MahasiswaResponseSchema),
+          schema: PaginatedMahasiswaSchema,
         },
       },
     },

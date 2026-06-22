@@ -15,16 +15,36 @@ export default function KrsPortal() {
   const [krsLoading, setKrsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Load mahasiswa and available classes
+  // Student pagination states (left sidebar)
+  const [mhsPage, setMhsPage] = useState(1);
+  const [mhsTotalPages, setMhsTotalPages] = useState(1);
+  const mhsLimit = 5;
+
+  const fetchMahasiswa = async (currentPage: number) => {
+    try {
+      const res = await fetch(`${API_URL}/mahasiswa?page=${currentPage}&limit=${mhsLimit}`);
+      if (res.ok) {
+        const result = await res.json() as any;
+        setMahasiswaList(result.data || []);
+        setMhsTotalPages(result.meta?.totalPages || 1);
+      } else {
+        setMahasiswaList([]);
+      }
+    } catch (err) {
+      console.error("Gagal memuat mahasiswa:", err);
+      setMahasiswaList([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchMahasiswa(mhsPage);
+  }, [mhsPage]);
+
+  // Load available classes initially
   const initPortal = async () => {
     try {
-      const [mRes, kRes] = await Promise.all([
-        fetch(`${API_URL}/mahasiswa`),
-        fetch(`${API_URL}/kelas`),
-      ]);
-      const mData = await mRes.json() as any;
+      const kRes = await fetch(`${API_URL}/kelas`);
       const kData = await kRes.json() as any;
-      setMahasiswaList(mData);
       setKelasList(kData);
     } catch (err) {
       console.error("Gagal inisialisasi KRS:", err);
@@ -162,6 +182,27 @@ export default function KrsPortal() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Student Pagination Controls */}
+              <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-4">
+                <button
+                  onClick={() => setMhsPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={mhsPage === 1}
+                  className="text-xs font-semibold px-2 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-50 transition-all cursor-pointer"
+                >
+                  Prev
+                </button>
+                <span className="text-xs font-bold text-slate-600">
+                  {mhsPage} / {mhsTotalPages}
+                </span>
+                <button
+                  onClick={() => setMhsPage((prev) => Math.min(prev + 1, mhsTotalPages))}
+                  disabled={mhsPage === mhsTotalPages}
+                  className="text-xs font-semibold px-2 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-50 transition-all cursor-pointer"
+                >
+                  Next
+                </button>
               </div>
             </div>
 

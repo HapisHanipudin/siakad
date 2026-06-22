@@ -13,6 +13,12 @@ export default function MahasiswaPortal() {
   const [tagihan, setTagihan] = useState<Tagihan[]>([]);
   const [tagihanLoading, setTagihanLoading] = useState(false);
 
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const limit = 10;
+
   // Form states
   const [nim, setNim] = useState("");
   const [nama, setNama] = useState("");
@@ -23,21 +29,29 @@ export default function MahasiswaPortal() {
   const [kelompok, setKelompok] = useState(1);
   const [angkatan, setAngkatan] = useState(2025);
 
-  const fetchMahasiswa = async () => {
+  const fetchMahasiswa = async (currentPage = page) => {
+    setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/mahasiswa`);
-      const data = await res.json() as any;
-      setMahasiswaList(data);
+      const res = await fetch(`${API_URL}/mahasiswa?page=${currentPage}&limit=${limit}`);
+      if (res.ok) {
+        const result = await res.json() as any;
+        setMahasiswaList(result.data || []);
+        setTotalPages(result.meta?.totalPages || 1);
+        setTotalItems(result.meta?.total || 0);
+      } else {
+        setMahasiswaList([]);
+      }
     } catch (err) {
       console.error("Gagal memuat mahasiswa:", err);
+      setMahasiswaList([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchMahasiswa();
-  }, []);
+    fetchMahasiswa(page);
+  }, [page]);
 
   const fetchTagihan = async (id_mahasiswa: number) => {
     setTagihanLoading(true);
@@ -95,7 +109,8 @@ export default function MahasiswaPortal() {
         setNama("");
         setEmail("");
         setPassword("");
-        fetchMahasiswa();
+        setPage(1);
+        fetchMahasiswa(1);
       }
     } catch (err) {
       console.error(err);
@@ -275,6 +290,32 @@ export default function MahasiswaPortal() {
                       ))}
                     </tbody>
                   </table>
+
+                  {/* Pagination Controls */}
+                  <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-4">
+                    <p className="text-xs text-slate-500 font-medium">
+                      Menampilkan <span className="font-semibold text-slate-800">{mahasiswaList.length}</span> dari <span className="font-semibold text-slate-800">{totalItems}</span> mahasiswa
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={page === 1}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-50 disabled:hover:bg-white transition-all cursor-pointer"
+                      >
+                        Prev
+                      </button>
+                      <span className="text-xs font-bold text-slate-600 px-3 py-1.5 rounded-lg bg-slate-100/80">
+                        {page} / {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                        disabled={page === totalPages}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-50 disabled:hover:bg-white transition-all cursor-pointer"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

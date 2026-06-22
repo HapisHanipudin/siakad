@@ -70,6 +70,16 @@ async function seed() {
     console.log("🚀 Starting database seeding transaction...");
     await client.query("BEGIN");
 
+    console.log("🧹 Truncating existing tables...");
+    await client.query(`
+      TRUNCATE TABLE 
+        kalender_akademik, pengumuman, log_aktivitas, pembayaran, tagihan, 
+        presensi, pertemuan, detail_krs, krs, kelas, users, mahasiswa, 
+        kelompok, dosen, kurikulum_mata_kuliah, rombel, prasyarat_mata_kuliah, 
+        mata_kuliah, ruangan, gedung, kurikulum 
+      RESTART IDENTITY CASCADE;
+    `);
+
     // 0. Kurikulum
     console.log("⏳ Seeding kurikulum...");
     const kurikulumRes = await client.query(`
