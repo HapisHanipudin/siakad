@@ -7,28 +7,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export async function up(pgm: MigrationBuilder): Promise<void> {
-  // Create custom types first so triggers and procedures can compile
-  pgm.sql(`
-    DO $$ 
-    BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_role') THEN
-        CREATE TYPE enum_role AS ENUM ('mahasiswa', 'dosen', 'admin');
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_krs') THEN
-        CREATE TYPE status_krs AS ENUM ('draft', 'menunggu', 'ditolak', 'sah');
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'status_transaksi') THEN
-        CREATE TYPE status_transaksi AS ENUM ('belum', 'diverifikasi', 'lunas');
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'semester_aktif') THEN
-        CREATE TYPE semester_aktif AS ENUM ('ganjil', 'genap');
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'nilai_huruf') THEN
-        CREATE TYPE nilai_huruf AS ENUM ('A', 'B', 'C', 'D', 'E', 'F');
-      END IF;
-    END $$;
-  `);
-
   // Load and execute procedures
   const procPath = path.resolve(__dirname, "../../../query/task04_procedure_udf_cursor.sql");
   const procSql = fs.readFileSync(procPath, "utf-8");
@@ -64,11 +42,5 @@ export async function down(pgm: MigrationBuilder): Promise<void> {
 
     DROP FUNCTION IF EXISTS format_profil_mahasiswa(INT) CASCADE;
     DROP FUNCTION IF EXISTS cek_kelayakan_krs(INT) CASCADE;
-
-    DROP TYPE IF EXISTS enum_role CASCADE;
-    DROP TYPE IF EXISTS status_krs CASCADE;
-    DROP TYPE IF EXISTS status_transaksi CASCADE;
-    DROP TYPE IF EXISTS semester_aktif CASCADE;
-    DROP TYPE IF EXISTS nilai_huruf CASCADE;
   `);
 }

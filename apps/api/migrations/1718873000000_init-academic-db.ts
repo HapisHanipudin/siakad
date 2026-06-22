@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const up = (pgm: MigrationBuilder): void => {
-  const sqlPath = path.resolve(__dirname, "../../../query/ddl_postgres.sql");
+  const sqlPath = path.resolve(__dirname, "../../../query/skema_dan_data_akademik_pg.sql");
   if (!fs.existsSync(sqlPath)) {
     throw new Error(`File SQL tidak ditemukan di path: ${sqlPath}`);
   }
@@ -41,5 +41,18 @@ export const down = (pgm: MigrationBuilder): void => {
     DROP TABLE IF EXISTS program_studi CASCADE;
     DROP TABLE IF EXISTS tahun_ajaran CASCADE;
     DROP TABLE IF EXISTS fakultas CASCADE;
+
+    DROP TYPE IF EXISTS tipe_ruangan CASCADE;
+    DROP TYPE IF EXISTS enum_role CASCADE;
+    DROP TYPE IF EXISTS status_mahasiswa CASCADE;
+    DROP TYPE IF EXISTS semester_aktif CASCADE;
+    DROP TYPE IF EXISTS status_krs CASCADE;
+    DROP TYPE IF EXISTS jenjang CASCADE;
+    DROP TYPE IF EXISTS nilai_huruf CASCADE;
+    DROP TYPE IF EXISTS tipe_mata_kuliah CASCADE;
+    DROP TYPE IF EXISTS status_presensi CASCADE;
+    DROP TYPE IF EXISTS tipe_tagihan CASCADE;
+    DROP TYPE IF EXISTS status_transaksi CASCADE;
+    DROP TYPE IF EXISTS target_pengumuman CASCADE;
   `);
 };
