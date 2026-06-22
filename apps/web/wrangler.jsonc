@@ -30,7 +30,8 @@
   },
   "upload_source_maps": true,
   "vars": {
-    "NEXT_PUBLIC_API_URL": "https://siakad-api.hapishanipudin.workers.dev/",
+    "NEXT_PUBLIC_API_URL": "https://siakad.hapishanipudin.workers.dev",
+    "NEXTJS_ENV": "production",
   },
   /**
    * Smart Placement
