@@ -1,48 +1,41 @@
-# OpenNext Starter
+# Web Portal (Next.js + OpenNext)
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Aplikasi frontend portal SiAkad yang dibangun menggunakan **Next.js** dan dioptimalkan untuk di-deploy ke Cloudflare Pages menggunakan **OpenNext** (`@opennextjs/cloudflare`).
 
-## Getting Started
+## Menjalankan di Lokal
 
-Read the documentation at https://opennext.js.org/cloudflare.
-
-## Develop
-
-Run the Next.js development server:
+### 1. Jalankan Dev Server
 
 ```bash
-npm run dev
-# or similar package manager command
+bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Server akan berjalan di [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. Preview Lokal Runtime Cloudflare
 
-## Preview
-
-Preview the application locally on the Cloudflare runtime:
+Untuk menguji build Next.js lokal pada runtime emulator Cloudflare (Wrangler):
 
 ```bash
-npm run preview
-# or similar package manager command
+bun run preview
 ```
 
-## Deploy (Cloudflare Pages)
+## Cara Deploy (Cloudflare Pages)
 
-Untuk deployment via Cloudflare Pages (dengan preview PR), gunakan konfigurasi build berikut:
+Proyek ini terintegrasi dengan **OpenNext** untuk mempermudah build dan upload aset statis serta edge routes. 
 
-- Root directory: `/` (repo root)
-- Build command: `bun install --frozen-lockfile && cd apps/web && npx @cloudflare/next-on-pages@1`
-- Build output directory: `apps/web/.vercel/output/static`
+### Konfigurasi Cloudflare Pages (Build Settings)
 
-Pastikan `NEXT_PUBLIC_API_URL` sudah diisi di environment variable Cloudflare Pages.
+Gunakan parameter berikut saat mengatur proyek di dashboard Cloudflare Pages:
 
-## Learn More
+- **Framework preset**: `None` (atau custom)
+- **Root directory**: `/` (repo root)
+- **Build command**: `bun install --frozen-lockfile && cd apps/web && bun run build` (menggunakan OpenNext)
+- **Build output directory**: `apps/web/.open-next/assets` (untuk aset statis)
 
-To learn more about Next.js, take a look at the following resources:
+### Environment Variables untuk Cloudflare Pages
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Pastikan variabel-variabel berikut telah diatur di Settings proyek Cloudflare Pages Anda:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `NEXT_PUBLIC_API_URL`: URL API gateway produksi backend Anda (contoh: `https://siakad-api.hapishanipudin.workers.dev`, **tanpa trailing slash**).
+- `NEXTJS_ENV`: Set ke `production` untuk mengoptimalkan performa runtime Next.js.

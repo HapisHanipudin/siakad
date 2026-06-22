@@ -9,27 +9,28 @@ Aplikasi ini dikembangkan sebagai proyek Ujian Akhir Semester (UAS) mata kuliah 
 SiAkad adalah platform manajemen data akademik perguruan tinggi yang mengelola data **Mahasiswa**, **Dosen**, **Mata Kuliah**, dan pengisian **KRS (Kartu Rencana Studi)**. Proyek ini mendemonstrasikan perancangan basis data relasional serta implementasi operasi CRUD terintegrasi menggunakan Next.js di frontend dan Hono (Cloudflare Workers) di backend.
 
 ```
-Frontend (Next.js)  ↔  API Gateway (Hono)  ↔  Drizzle ORM  ↔  PostgreSQL
+Frontend (Next.js)  ↔  API Gateway (Hono)  ↔  pg (node-postgres)  ↔  PostgreSQL
 ```
 
 ---
 
 ## Tech Stack
 
-| Layer    | Teknologi                       |
-| -------- | ------------------------------- |
-| Frontend | Next.js, Tailwind CSS           |
-| Backend  | Hono on Cloudflare Workers      |
-| ORM      | Drizzle ORM                     |
-| Database | PostgreSQL (Docker / Neon)      |
-| Deploy   | Cloudflare Workers & Pages      |
+| Layer      | Teknologi                          |
+| ---------- | ---------------------------------- |
+| Frontend   | Next.js (OpenNext), Tailwind CSS   |
+| Backend    | Hono on Cloudflare Workers         |
+| Migration  | node-pg-migrate                    |
+| Driver     | pg (node-postgres)                 |
+| Database   | PostgreSQL (Docker / Neon)         |
+| Deploy     | Cloudflare Workers & Pages         |
 
 ---
 
 ## Struktur Monorepo
 Proyek ini menggunakan struktur monorepo untuk menyatukan frontend, backend, dan type-sharing secara efisien:
-* `/apps/web` - Aplikasi frontend Next.js.
-* `/apps/api` - Worker API backend berbasis Hono dan Drizzle ORM.
+* `/apps/web` - Aplikasi frontend Next.js (OpenNext).
+* `/apps/api` - Worker API backend berbasis Hono dan pg Client.
 * `/packages/shared` - Modul TypeScript shared types yang digunakan bersama oleh frontend dan backend.
 
 ---
@@ -67,23 +68,20 @@ Proyek ini menggunakan struktur monorepo untuk menyatukan frontend, backend, dan
 
 ---
 
-## Sinkronisasi Database (Drizzle ORM)
-Untuk melakukan perubahan schema dan migrasi database ke PostgreSQL lokal, masuk ke direktori backend:
+## Sinkronisasi & Migrasi Database
+Untuk mengelola migrasi skema database (termasuk custom ENUM types dan trigger) menggunakan `node-pg-migrate`, masuk ke direktori backend:
 
 ```bash
 cd apps/api
 
-# 1. Generate file migrasi SQL berdasarkan schema.ts
-bun run db:generate
-
-# 2. Jalankan migrasi SQL ke database lokal
+# 1. Jalankan seluruh migrasi skema (UP)
 bun run db:migrate
 
-# 3. Sinkronisasi schema langsung (sangat cepat untuk fase development)
-bun run db:push
+# 2. Batalkan migrasi skema secara bertahap (DOWN)
+bun run db:migrate:down
 
-# 4. Membuka GUI Drizzle Studio di browser untuk melihat isi tabel
-bun run db:studio
+# 3. Buat file template migrasi baru
+bun run db:migrate:create <nama_migrasi>
 ```
 
 ---

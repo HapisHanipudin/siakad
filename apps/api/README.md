@@ -1,45 +1,44 @@
-# API Boilerplate (Hono + Drizzle)
+# API Service (Hono + node-pg-migrate)
 
-Stack yang disiapkan di folder ini:
+Stack yang digunakan di folder ini:
 
-- Hono sebagai HTTP framework di Cloudflare Workers
-- Drizzle ORM + Drizzle Kit untuk schema dan migration
-- Neon serverless driver untuk PostgreSQL
+- **Hono**: HTTP framework di Cloudflare Workers
+- **node-pg-migrate**: Driver untuk migrasi skema database PostgreSQL menggunakan TypeScript/JavaScript
+- **pg (node-postgres)**: Client driver untuk koneksi ke basis data PostgreSQL (Neon/Docker)
 
-## Struktur
+## Struktur Direktori
 
-- `src/index.ts` entrypoint Worker
-- `src/routes/*` route modular
-- `src/db/schema.ts` definisi tabel
-- `src/db/client.ts` inisialisasi Drizzle client
-- `drizzle.config.ts` konfigurasi migration
+- `src/index.ts` - Entrypoint Worker
+- `src/app.ts` - Routing modular Hono dan inisialisasi route endpoints
+- `src/db/index.ts` - Inisialisasi client connection `pg`
+- `migrations/` - File migrasi skema database
 
-## Menjalankan
+## Menjalankan API (Local Dev)
 
 ```bash
 bun run dev
 ```
 
-## Database Commands
+## Perintah Migrasi Database
 
 ```bash
-bun run db:generate
+# 1. Jalankan migrasi skema (UP)
 bun run db:migrate
-bun run db:push
-bun run db:studio
+
+# 2. Revert migrasi skema (DOWN)
+bun run db:migrate:down
+
+# 3. Buat file template migrasi baru
+bun run db:migrate:create <nama_migrasi>
 ```
 
-## Environment
+## Environment Variables
 
-Pastikan variabel di bawah tersedia di `.dev.vars` atau `.env`:
+Pastikan variabel di bawah ini tersedia di file `.dev.vars` (untuk lokal) atau Cloudflare Secrets (untuk produksi):
 
-- `DATABASE_URL` untuk local development dan Drizzle Kit
-- `HYPERDRIVE.connectionString` untuk koneksi runtime di Cloudflare Workers
-- `JWT_SECRET`
-- `GITHUB_CLIENT_ID`
-- `GITHUB_CLIENT_SECRET`
-- `WAKATIME_CLIENT_ID`
-- `WAKATIME_CLIENT_SECRET`
-- `CORS_ORIGINS` (comma-separated, support wildcard `*.`)
+- `DATABASE_URL`: URL koneksi PostgreSQL utama (Neon / Docker lokal)
+- `JWT_SECRET`: Secret key untuk otentikasi JWT token
+- `CORS_ORIGINS`: Origin CORS yang diizinkan (dipisah koma)
+- `NEON_DATABASE_URL`: URL cadangan/alternatif untuk live database Neon
 
-Catatan: runtime API akan memakai `HYPERDRIVE.connectionString` jika binding Hyperdrive tersedia, dan fallback ke `DATABASE_URL` atau `NEON_DATABASE_URL` bila diperlukan.
+*Catatan: runtime API akan secara otomatis menggunakan `HYPERDRIVE.connectionString` jika binding Hyperdrive tersedia di Cloudflare, dan melakukan fallback ke `DATABASE_URL` jika dijalankan di mode local development.*
