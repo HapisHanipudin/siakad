@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Mahasiswa, Krs, Kelas } from "@siakad/shared";
 
-const API_URL = "http://localhost:8787";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787";
 
 export default function KrsPortal() {
   const [mahasiswaList, setMahasiswaList] = useState<Mahasiswa[]>([]);
