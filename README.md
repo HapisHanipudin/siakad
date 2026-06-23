@@ -20,6 +20,7 @@ Untuk melihat rincian pemenuhan syarat teknis (Trigger, TCL, Stored Procedure, d
 👉 [**Dokumentasi Proyek & Pembagian Tugas**](./DOKUMENTASI_PROYEK.md)
 
 🌐 **Demo Live Website:** [siakad-fe.pages.dev](https://siakad-fe.pages.dev)
+📊 **ERD (dbdiagram.io):** [Academic-System](https://dbdiagram.io/d/Academic-System-69c38ebd78c6c4bc7a6158dc)
 
 
 ---
