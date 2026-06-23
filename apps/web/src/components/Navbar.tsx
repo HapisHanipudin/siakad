@@ -30,6 +30,9 @@ export default function Navbar() {
           <Link href="/admin" className="hover:text-indigo-600 transition-colors no-underline">
             Admin (Kelas)
           </Link>
+          <Link href="/admin/laporan" className="hover:text-indigo-600 transition-colors no-underline">
+            Laporan
+          </Link>
         </div>
       </div>
     </nav>
