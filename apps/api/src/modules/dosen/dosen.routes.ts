@@ -8,6 +8,7 @@ const DosenResponseSchema = z.object({
   id_fakultas: z.number(),
   nama_fakultas: z.string().optional(),
   email: z.string().optional(),
+  jumlah_bimbingan: z.number().optional(),
 });
 
 const BimbinganMahasiswaSchema = z.object({
@@ -33,12 +34,27 @@ export const getDosenRoute = createRoute({
   path: "/dosen",
   tags: ["Dosen"],
   summary: "Dapatkan daftar dosen",
+  request: {
+    query: z.object({
+      page: z.string().optional(),
+      limit: z.string().optional(),
+      search: z.string().optional(),
+    }),
+  },
   responses: {
     200: {
       description: "Daftar dosen",
       content: {
         "application/json": {
-          schema: z.array(DosenResponseSchema),
+          schema: z.object({
+            data: z.array(DosenResponseSchema),
+            meta: z.object({
+              total: z.number(),
+              page: z.number(),
+              limit: z.number(),
+              totalPages: z.number(),
+            }),
+          }),
         },
       },
     },

@@ -7,6 +7,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787";
 
 export default function DosenPortal() {
   const [dosenList, setDosenList] = useState<Dosen[]>([]);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [selectedDosen, setSelectedDosen] = useState<Dosen | null>(null);
   const [bimbinganList, setBimbinganList] = useState<Mahasiswa[]>([]);
   const [selectedMhs, setSelectedMhs] = useState<Mahasiswa | null>(null);
@@ -20,14 +24,25 @@ export default function DosenPortal() {
   const [krsLoading, setKrsLoading] = useState(false);
   const [savingGrades, setSavingGrades] = useState(false);
   const [approvingKrs, setApprovingKrs] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const initPortal = async () => {
+  const initPortal = async (p = page, s = searchQuery) => {
+    setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/dosen`);
-      const data = await res.json() as any;
-      setDosenList(data);
+      const params = new URLSearchParams({ page: String(p), limit: String(limit) });
+      if (s) params.append("search", s);
+      const res = await fetch(`${API_URL}/dosen?${params.toString()}`);
+      if (res.ok) {
+        const json = await res.json() as any;
+        setDosenList(json.data || []);
+        setTotalItems(json.meta?.total || 0);
+        setTotalPages(json.meta?.totalPages || 1);
+      } else {
+        setDosenList([]);
+      }
     } catch (err) {
       console.error("Gagal memuat dosen:", err);
+      setDosenList([]);
     } finally {
       setLoading(false);
     }
@@ -65,6 +80,11 @@ export default function DosenPortal() {
     setSelectedDosen(d);
     fetchBimbingan(d.id_dosen);
   };
+
+  useEffect(() => {
+    // reload dosen list when page or search changes
+    initPortal(page, searchQuery);
+  }, [page, searchQuery]);
 
   const fetchStudentKrs = async (id_mahasiswa: number) => {
     setKrsLoading(true);
@@ -196,17 +216,29 @@ export default function DosenPortal() {
                 <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
                   <span>👨‍🏫</span> Pilih Dosen Pengajar
                 </h2>
+                <div className="mb-3">
+                  <input
+                    type="text"
+                    placeholder="Cari nama / NIDN dosen..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500 bg-slate-50"
+                  />
+                </div>
                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                  {dosenList.map((d) => (
+                    {dosenList.map((d) => (
                     <div
                       key={d.id_dosen}
                       onClick={() => handleSelectDosen(d)}
                       className={`p-3 rounded-xl border transition-all cursor-pointer ${selectedDosen?.id_dosen === d.id_dosen ? "border-purple-500 bg-purple-50/30 shadow-sm" : "border-slate-100 hover:bg-slate-50"}`}
                     >
                       <p className="font-semibold text-slate-800 text-sm">{d.nama_dosen}</p>
-                      <p className="text-xs text-slate-400 font-mono mt-1">NIDN: {d.nidn}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs text-slate-400 font-mono">NIDN: {d.nidn}</p>
+                        <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-semibold">{(d as any).jumlah_bimbingan ?? 0} bimbingan</span>
+                      </div>
                     </div>
-                  ))}
+                    ))}
                 </div>
               </div>
 
@@ -243,6 +275,23 @@ export default function DosenPortal() {
 
             {/* Sisi Kanan: Input Nilai KRS (Skenario 2) */}
             <div className="lg:col-span-2">
+              {/* Pagination controls for dosen list */}
+              <div className="mb-4 flex items-center justify-between">
+                <div className="text-sm text-slate-500">Menampilkan <span className="font-semibold text-slate-800">{dosenList.length}</span> dari <span className="font-semibold text-slate-800">{totalItems}</span> dosen</div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                    disabled={page === 1}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-50"
+                  >Prev</button>
+                  <span className="text-xs font-bold text-slate-600 px-3 py-1.5 rounded-lg bg-slate-100/80">{page} / {totalPages}</span>
+                  <button
+                    onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                    disabled={page === totalPages}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 disabled:opacity-50"
+                  >Next</button>
+                </div>
+              </div>
               {selectedMhs ? (
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-4 mb-6">

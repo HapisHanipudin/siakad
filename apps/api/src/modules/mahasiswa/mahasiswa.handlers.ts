@@ -33,10 +33,15 @@ export const getMahasiswaHandler: RouteHandler<
         m.id_kelompok, 
         ps.nama_prodi, 
         u.email,
-        format_profil_mahasiswa(m.id_mahasiswa) AS profil_format
+        format_profil_mahasiswa(m.id_mahasiswa) AS profil_format,
+        k.id_dosen AS id_dosen_pembimbing,
+        d.nama_dosen AS nama_dosen_pembimbing,
+        d.nidn AS nidn_pembimbing
       FROM mahasiswa m 
       LEFT JOIN program_studi ps ON m.id_program_studi = ps.id_program_studi 
       LEFT JOIN users u ON m.id_mahasiswa = u.id_mahasiswa
+      LEFT JOIN kelompok k ON m.id_kelompok = k.id_kelompok
+      LEFT JOIN dosen d ON k.id_dosen = d.id_dosen
     `;
 
     if (search) {

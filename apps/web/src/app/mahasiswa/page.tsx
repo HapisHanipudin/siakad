@@ -483,6 +483,7 @@ export default function MahasiswaPortal() {
                             <td className="py-4">
                               <p className="font-semibold text-slate-800">{m.nama_mahasiswa}</p>
                               <p className="text-xs text-slate-400 font-mono mt-0.5">{m.nim}</p>
+                              <p className="text-xs text-slate-400 mt-1">Pembimbing: {((m as any).nama_dosen_pembimbing) || "-"}</p>
                             </td>
                             <td className="py-4 text-slate-600">{m.nama_prodi || "Informatika"}</td>
                             <td className="py-4 text-slate-600">{m.angkatan}</td>
