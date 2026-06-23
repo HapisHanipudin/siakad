@@ -60,6 +60,6 @@ export const corsMiddleware = cors({
     return isAllowed ? normalizedRequestOrigin : "";
   },
   credentials: true,
-  allowMethods: ["GET", "POST", "OPTIONS"],
+  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization", "x-trpc-source"],
 });

@@ -122,7 +122,7 @@ export default function KrsPortal() {
         // Trigger DB exceptions (prerequisite failed or class full) are returned here
         alert(`Gagal mengisi KRS: ${data.message}`);
       } else {
-        alert("KRS berhasil diajukan dan disetujui (Skenario 1)!");
+        alert("KRS berhasil diajukan! Menunggu persetujuan Dosen Wali.");
         fetchKrs(selectedMhs.id_mahasiswa);
         // Refresh kelas to update kuota live
         const kRes = await fetch(`${API_URL}/kelas`);

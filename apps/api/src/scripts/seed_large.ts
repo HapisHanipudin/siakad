@@ -246,8 +246,8 @@ async function seed() {
     }
     await bulkInsert(client, "users", ["id_mahasiswa", "id_dosen", "email", "password", "role"], dosenUserRows);
 
-    // Dynamic Rombel & Kelompok (1 Rombel & Kelompok per Program Studi)
-    console.log("⏳ Seeding rombel and kelompok per prodi...");
+    // Dynamic Rombel & Kelompok (multiple Kelompoks per prodi to limit advisor load)
+    console.log("⏳ Seeding rombel per prodi...");
     const rombelRows: any[][] = [];
     let rombelCounter = 1;
     prodis.forEach(p => {
@@ -260,36 +260,74 @@ async function seed() {
     });
     const rombels = await bulkInsert(client, "rombel", ["id_program_studi", "nama_rombel", "angkatan"], rombelRows);
 
-    const kelompokRows = rombels.map(r => {
-      const randomDosen = getRandomElement(dosens).id_dosen;
-      return [r.id_rombel, randomDosen, `KLP-${r.nama_rombel}`];
+    console.log("⏳ Seeding kelompoks (max 10 students per advisor)...");
+    const kelompokRows: any[][] = [];
+    
+    // We will pre-calculate students count per prodi
+    const prodiStudentCounts = new Map<number, number>();
+    prodis.forEach(p => {
+      const studentCount = getRandomInt(100, 120); // 100 to 120 students per prodi
+      prodiStudentCounts.set(p.id_program_studi, studentCount);
     });
-    const kelompoks = await bulkInsert(client, "kelompok", ["id_rombel", "id_dosen", "kode_kelompok"], kelompokRows);
 
-    // Dynamic Mahasiswa (100 - 150 per Program Studi)
+    // Create kelompoks for each prodi
+    const prodiKelompoks = new Map<number, any[]>();
+    
+    for (const r of rombels) {
+      const studentCount = prodiStudentCounts.get(r.id_program_studi) || 100;
+      const numKelompoks = Math.ceil(studentCount / 10); // Max 10 students per advisor
+      
+      // Shuffle dosens so we distribute randomly
+      const shuffledDosens = [...dosens].sort(() => Math.random() - 0.5);
+      
+      for (let k = 1; k <= numKelompoks; k++) {
+        // Assign a random dosen from the shuffled list
+        const assignedDosen = shuffledDosens[(k - 1) % shuffledDosens.length].id_dosen;
+        const kodeKelompok = `KLP-${r.nama_rombel}-${k}`;
+        kelompokRows.push([r.id_rombel, assignedDosen, kodeKelompok]);
+      }
+    }
+    
+    const kelompoks = await bulkInsert(client, "kelompok", ["id_rombel", "id_dosen", "kode_kelompok"], kelompokRows);
+    
+    // Group kelompoks by prodi/rombel to make student assignment easy
+    for (const k of kelompoks) {
+      const rom = rombels.find(r => r.id_rombel === k.id_rombel);
+      if (rom) {
+        if (!prodiKelompoks.has(rom.id_program_studi)) {
+          prodiKelompoks.set(rom.id_program_studi, []);
+        }
+        prodiKelompoks.get(rom.id_program_studi)!.push(k);
+      }
+    }
+
+    // Dynamic Mahasiswa (with even advisor distribution)
     console.log("⏳ Preparing dynamic mahasiswa rows...");
     const mahasiswaRows: any[][] = [];
 
     prodis.forEach(p => {
-      const studentCount = getRandomInt(100, 150);
+      const studentCount = prodiStudentCounts.get(p.id_program_studi) || 100;
       const kur = kurikulums.find(k => k.id_program_studi === p.id_program_studi) || kurikulums[0];
-      const rom = rombels.find(r => r.id_program_studi === p.id_program_studi) || rombels[0];
-      const kel = kelompoks.find(k => k.id_rombel === rom.id_rombel) || kelompoks[0];
+      const kList = prodiKelompoks.get(p.id_program_studi) || kelompoks;
 
       const prodiInfo = prodis.find(pr => pr.id_program_studi === p.id_program_studi);
       const idFak = prodiInfo ? prodiInfo.id_fakultas : 1;
       const jenjangMhs = prodiInfo ? prodiInfo.jenjang : "S1";
 
-      for (let s = 501; s <= 500 + studentCount; s++) {
-        let nim = generateNIM(2025, idFak, jenjangMhs, p.id_program_studi, s);
+      for (let s = 1; s <= studentCount; s++) {
+        let nim = generateNIM(2025, idFak, jenjangMhs, p.id_program_studi, s + 500);
         let attempts = 0;
         while (existingNims.has(nim)) {
           attempts++;
-          nim = generateNIM(2025, idFak, jenjangMhs, p.id_program_studi, s + attempts);
+          nim = generateNIM(2025, idFak, jenjangMhs, p.id_program_studi, s + 500 + attempts);
         }
         existingNims.add(nim);
         const nama = getRandomName();
         const status = getWeightedStatus();
+        
+        // Round-robin assign to kelompoks of this prodi
+        const kel = kList[(s - 1) % kList.length];
+        
         mahasiswaRows.push([p.id_program_studi, kur.id_kurikulum, kel.id_kelompok, nim, nama, status, 2025]);
       }
     });

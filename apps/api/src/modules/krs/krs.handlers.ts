@@ -2,7 +2,7 @@ import type { RouteHandler } from "@hono/zod-openapi";
 import { createDb } from "../../db";
 import { getValidatedEnv } from "../../env";
 import type { AppEnv } from "../../factory";
-import { getKrsRoute, createKrsRoute, cancelKrsRoute } from "./krs.routes";
+import { getKrsRoute, createKrsRoute, cancelKrsRoute, approveKrsRoute } from "./krs.routes";
 
 export const getKrsHandler: RouteHandler<
   typeof getKrsRoute,
@@ -187,15 +187,11 @@ export const createKrsHandler: RouteHandler<
       `, [id_krs, id_kelas]);
     }
 
-    // 4. Sahkan KRS menggunakan Stored Procedure sp_sahkan_krs
-    await client.query(`
-      CALL sp_sahkan_krs($1)
-    `, [id_krs]);
-
-    // Update catatan tambahan
+    // 4. Ubah status KRS menjadi 'menunggu' (menunggu validasi Dosen Wali)
     await client.query(`
       UPDATE krs 
-      SET catatan = 'KRS disetujui Dosen Wali' 
+      SET status_krs = 'menunggu', 
+          catatan = 'Menunggu validasi Dosen Wali' 
       WHERE id_krs = $1
     `, [id_krs]);
 
@@ -324,6 +320,56 @@ export const cancelKrsHandler: RouteHandler<
     await client.query("ROLLBACK");
     return c.json({
       message: error.message || "Gagal membatalkan KRS",
+    }, 400);
+  } finally {
+    await client.end();
+  }
+};
+
+export const approveKrsHandler: RouteHandler<
+  typeof approveKrsRoute,
+  AppEnv
+> = async (c) => {
+  const env = getValidatedEnv(c.env);
+  const client = createDb(env);
+  const { id_krs } = c.req.valid("json");
+
+  await client.connect();
+  try {
+    await client.query("BEGIN");
+
+    // Menjalankan stored procedure sp_sahkan_krs (SP-03)
+    await client.query(`
+      CALL sp_sahkan_krs($1)
+    `, [id_krs]);
+
+    // Update catatan tambahan
+    await client.query(`
+      UPDATE krs 
+      SET catatan = 'KRS disetujui Dosen Wali' 
+      WHERE id_krs = $1
+    `, [id_krs]);
+
+    // Catat log
+    await client.query(`
+      INSERT INTO log_aktivitas (id_user, ip_address, aktivitas)
+      VALUES (
+        (SELECT id_user FROM users WHERE role = 'admin' LIMIT 1),
+        '127.0.0.1',
+        $1
+      )
+    `, [`Persetujuan KRS id=${id_krs} oleh Dosen Wali`]);
+
+    await client.query("COMMIT");
+
+    return c.json({
+      message: "KRS berhasil disahkan oleh Dosen Wali",
+      status_krs: "sah",
+    }, 200);
+  } catch (error: any) {
+    await client.query("ROLLBACK");
+    return c.json({
+      message: error.message || "Gagal mengesahkan KRS",
     }, 400);
   } finally {
     await client.end();

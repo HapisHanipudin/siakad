@@ -44,7 +44,9 @@ RETURNS TRIGGER AS $$
 DECLARE
     v_id_mahasiswa    INT;
     v_id_mata_kuliah  INT;
+    v_mata_kuliah     TEXT;
     v_id_prasyarat    INT;
+    v_prasyarat       TEXT;
     v_nilai_min       nilai_huruf;
     v_nilai_capai     nilai_huruf;
 
@@ -61,11 +63,17 @@ BEGIN
     FROM kelas
     WHERE id_kelas = NEW.id_kelas;
 
+    -- Ambil nama mata kuliah
+    SELECT nama_mata_kuliah INTO v_mata_kuliah
+    FROM mata_kuliah
+    WHERE id_mata_kuliah = v_id_mata_kuliah;
+
     -- Periksa setiap prasyarat mata kuliah ini
-    FOR v_id_prasyarat, v_nilai_min IN
-        SELECT id_prasyarat_mata_kuliah, nilai_min
-        FROM prasyarat_mata_kuliah
-        WHERE id_mata_kuliah = v_id_mata_kuliah
+    FOR v_id_prasyarat, v_prasyarat, v_nilai_min IN
+        SELECT pmk.id_prasyarat_mata_kuliah, mk.nama_mata_kuliah, pmk.nilai_min
+        FROM prasyarat_mata_kuliah pmk
+        JOIN mata_kuliah mk ON pmk.id_prasyarat_mata_kuliah = mk.id_mata_kuliah
+        WHERE pmk.id_mata_kuliah = v_id_mata_kuliah
     LOOP
         -- Cek apakah mahasiswa sudah lulus prasyarat dengan nilai cukup
         SELECT dk.nilai_akhir_huruf INTO v_nilai_capai
@@ -85,8 +93,8 @@ BEGIN
            array_position(v_urutan, v_nilai_min::TEXT)
         THEN
             RAISE EXCEPTION
-                'Prasyarat tidak terpenuhi: mata kuliah id=% memerlukan nilai minimum % pada prasyarat id=%',
-                v_id_mata_kuliah, v_nilai_min, v_id_prasyarat;
+                'Prasyarat tidak terpenuhi: mata kuliah % memerlukan nilai minimum % pada prasyarat %',
+                v_mata_kuliah, v_nilai_min, v_prasyarat;
         END IF;
     END LOOP;
 

@@ -19,6 +19,7 @@ export default function DosenPortal() {
   const [bimbinganLoading, setBimbinganLoading] = useState(false);
   const [krsLoading, setKrsLoading] = useState(false);
   const [savingGrades, setSavingGrades] = useState(false);
+  const [approvingKrs, setApprovingKrs] = useState(false);
 
   const initPortal = async () => {
     try {
@@ -151,6 +152,33 @@ export default function DosenPortal() {
     }
   };
 
+  const handleApproveKrs = async () => {
+    if (!mhsKrs || !selectedMhs) return;
+    setApprovingKrs(true);
+    try {
+      const res = await fetch(`${API_URL}/krs/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id_krs: mhsKrs.id_krs,
+        }),
+      });
+
+      const data = await res.json() as any;
+      if (!res.ok) {
+        alert(data.message || "Gagal mengesahkan KRS");
+      } else {
+        alert("KRS Mahasiswa berhasil disahkan (SP-03)!");
+        fetchStudentKrs(selectedMhs.id_mahasiswa);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Kesalahan jaringan.");
+    } finally {
+      setApprovingKrs(false);
+    }
+  };
+
   return (
     <div className="bg-slate-50 min-h-screen text-slate-800 font-sans py-10 px-6">
       <div className="max-w-7xl mx-auto">
@@ -219,20 +247,38 @@ export default function DosenPortal() {
                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in duration-300">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-4 mb-6">
                     <div>
-                      <h2 className="text-lg font-bold text-slate-900">
-                        Input Nilai Mahasiswa: {selectedMhs.nama_mahasiswa}
-                      </h2>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-lg font-bold text-slate-900">
+                          Input Nilai Mahasiswa: {selectedMhs.nama_mahasiswa}
+                        </h2>
+                        {mhsKrs && (
+                          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${mhsKrs.status_krs === 'sah' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                            {mhsKrs.status_krs.toUpperCase()}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-400 font-mono mt-0.5">NIM: {selectedMhs.nim}</p>
                     </div>
-                    {mhsKrs && mhsKrs.detail && mhsKrs.detail.length > 0 && (
-                      <button
-                        onClick={handleSaveGrades}
-                        disabled={savingGrades}
-                        className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition-colors shadow-sm disabled:bg-purple-300"
-                      >
-                        {savingGrades ? "Menyimpan..." : "Simpan Nilai (Skenario 2)"}
-                      </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {mhsKrs && mhsKrs.status_krs === 'menunggu' && (
+                        <button
+                          onClick={handleApproveKrs}
+                          disabled={approvingKrs}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition-colors shadow-sm disabled:bg-emerald-300"
+                        >
+                          {approvingKrs ? "Memproses..." : "Sahkan KRS (SP-03)"}
+                        </button>
+                      )}
+                      {mhsKrs && mhsKrs.detail && mhsKrs.detail.length > 0 && (
+                        <button
+                          onClick={handleSaveGrades}
+                          disabled={savingGrades}
+                          className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs px-5 py-2.5 rounded-xl transition-colors shadow-sm disabled:bg-purple-300"
+                        >
+                          {savingGrades ? "Menyimpan..." : "Simpan Nilai (Skenario 2)"}
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {krsLoading ? (

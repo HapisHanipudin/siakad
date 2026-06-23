@@ -134,3 +134,44 @@ export const cancelKrsRoute = createRoute({
     },
   },
 });
+
+export const approveKrsRoute = createRoute({
+  method: "post",
+  path: "/krs/approve",
+  tags: ["KRS"],
+  summary: "Persetujuan / Pengesahan KRS oleh Dosen Wali (SP-03)",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            id_krs: z.number(),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "KRS berhasil disahkan",
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z.string(),
+            status_krs: z.string(),
+          }),
+        },
+      },
+    },
+    400: {
+      description: "Gagal mengesahkan KRS",
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+    },
+  },
+});
