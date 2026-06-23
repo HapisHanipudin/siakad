@@ -54,11 +54,12 @@ export const createPembayaranHandler: RouteHandler<
   try {
     await client.query("BEGIN");
 
-    // Skenario 3: Verifikasi status tagihan sebelum membayar
+    // Skenario 3: Verifikasi status tagihan sebelum membayar (dengan Row Locking FOR UPDATE)
     const tagihanCheck = await client.query(`
       SELECT status_tagihan, nominal, id_mahasiswa
       FROM tagihan
       WHERE id_tagihan = $1
+      FOR UPDATE
     `, [id_tagihan]);
 
     if (tagihanCheck.rows.length === 0) {
@@ -71,12 +72,19 @@ export const createPembayaranHandler: RouteHandler<
       throw new Error(`Tagihan dengan id=${id_tagihan} sudah berstatus lunas, pembayaran ditolak.`);
     }
 
-    // Insert record pembayaran
-    // Trigger trg_update_status_tagihan otomatis berjalan saat status_pembayaran dimasukkan / didefinisikan lunas
+    // Menjalankan stored procedure sp_proses_pembayaran_standar (SP-02)
+    // Skenario 3: Locking & Transaksi terbungkus aman
+    await client.query(`
+      CALL sp_proses_pembayaran_standar($1, $2)
+    `, [id_tagihan, nominal_bayar]);
+
+    // Ambil detail pembayaran baru untuk di-return
     const payResult = await client.query(`
-      INSERT INTO pembayaran (id_tagihan, nominal_bayar, status_pembayaran)
-      VALUES ($1, $2, 'diverifikasi')
-      RETURNING id_pembayaran, id_tagihan, tanggal_bayar, nominal_bayar::float as nominal_bayar, status_pembayaran
+      SELECT id_pembayaran, id_tagihan, tanggal_bayar, nominal_bayar::float as nominal_bayar, status_pembayaran
+      FROM pembayaran
+      WHERE id_tagihan = $1 AND nominal_bayar = $2
+      ORDER BY id_pembayaran DESC
+      LIMIT 1
     `, [id_tagihan, nominal_bayar]);
 
     const newPayment = payResult.rows[0];

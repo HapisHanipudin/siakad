@@ -43,6 +43,9 @@ export const updateGradeHandler: RouteHandler<
       }
     }
 
+    // Menjalankan stored procedure sp_konversi_nilai_huruf (SP-04) dengan Cursor massal
+    await client.query("CALL sp_konversi_nilai_huruf()");
+
     // Catat log aktivitas input nilai
     const updateIdsString = updates.map(u => u.id_detail_krs).join(", ");
     await client.query(`
