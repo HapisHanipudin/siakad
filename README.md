@@ -14,6 +14,13 @@ Frontend (Next.js)  ↔  API Gateway (Hono)  ↔  pg (node-postgres)  ↔  Postg
 
 ---
 
+## 📚 Dokumentasi Akademik & Penilaian
+Proyek ini dibuat untuk memenuhi kriteria Tugas Akhir Praktikum Sistem Basis Data. 
+Untuk melihat rincian pemenuhan syarat teknis (Trigger, TCL, Stored Procedure, dll) beserta pembagian tugas masing-masing anggota kelompok, silakan merujuk pada dokumen berikut:
+👉 [**Dokumentasi Proyek & Pembagian Tugas**](./DOKUMENTASI_PROYEK.md)
+
+---
+
 ## Tech Stack
 
 | Layer      | Teknologi                          |
