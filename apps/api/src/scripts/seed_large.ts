@@ -337,56 +337,64 @@ async function seed() {
       const rom = rombels.find(r => r.id_program_studi === p.id_program_studi) || rombels[0];
 
       mkIds.forEach(idMk => {
-        const ru = getRandomElement(ruangans);
-        // Make sure class quota doesn't exceed room capacity
-        const kuota = Math.min(150, ru.kapasitas);
+        const numParallelClasses = 3;
+        for (let cIdx = 1; cIdx <= numParallelClasses; cIdx++) {
+          const ru = getRandomElement(ruangans);
+          const kuota = Math.min(150, ru.kapasitas);
 
-        // Find conflict-free schedule for lecturer
-        let assignedDosenId = getRandomElement(dosens).id_dosen;
-        let day = "Senin";
-        let time = times[0];
-        let foundSlot = false;
+          // Find conflict-free schedule for lecturer
+          let assignedDosenId = dosens[0].id_dosen;
+          let day = "Senin";
+          let time = times[0];
+          let foundSlot = false;
 
-        for (const possibleDosen of dosens) {
-          const scheds = lecturerSchedule.get(possibleDosen.id_dosen) || new Set();
-          for (let attempt = 0; attempt < 10; attempt++) {
-            const tempDay = getRandomElement(days);
-            const tempTimeIdx = Math.floor(Math.random() * times.length);
-            const slotKey = `${tempDay}-${tempTimeIdx}`;
+          const shuffledDosens = [...dosens].sort(() => Math.random() - 0.5);
+          for (const possibleDosen of shuffledDosens) {
+            const scheds = lecturerSchedule.get(possibleDosen.id_dosen) || new Set();
+            const possibleSlots: string[] = [];
+            days.forEach(d => {
+              for (let tIdx = 0; tIdx < times.length; tIdx++) {
+                possibleSlots.push(`${d}-${tIdx}`);
+              }
+            });
+            possibleSlots.sort(() => Math.random() - 0.5);
 
-            if (!scheds.has(slotKey)) {
-              assignedDosenId = possibleDosen.id_dosen;
-              day = tempDay;
-              time = times[tempTimeIdx];
-              scheds.add(slotKey);
-              lecturerSchedule.set(possibleDosen.id_dosen, scheds);
-              foundSlot = true;
-              break;
+            for (const slotKey of possibleSlots) {
+              if (!scheds.has(slotKey)) {
+                assignedDosenId = possibleDosen.id_dosen;
+                const parts = slotKey.split("-");
+                day = parts[0];
+                time = times[parseInt(parts[1], 10)];
+                scheds.add(slotKey);
+                lecturerSchedule.set(possibleDosen.id_dosen, scheds);
+                foundSlot = true;
+                break;
+              }
             }
+            if (foundSlot) break;
           }
-          if (foundSlot) break;
+
+          let code = "";
+          do {
+            code = `G-${classCounter++}`;
+          } while (existingClassCodes.has(code.toLowerCase()) || code.length > 10);
+          existingClassCodes.add(code.toLowerCase());
+
+          kelasRows.push([
+            ru.id_ruangan,
+            p.id_program_studi,
+            rom.id_rombel,
+            idMk,
+            assignedDosenId,
+            randomTa,
+            code,
+            kuota,
+            "ganjil",
+            time.mul,
+            time.sel,
+            day
+          ]);
         }
-
-        let code = "";
-        do {
-          code = `G-${classCounter++}`;
-        } while (existingClassCodes.has(code.toLowerCase()) || code.length > 10);
-        existingClassCodes.add(code.toLowerCase());
-
-        kelasRows.push([
-          ru.id_ruangan,
-          p.id_program_studi,
-          rom.id_rombel,
-          idMk,
-          assignedDosenId,
-          randomTa,
-          code,
-          kuota,
-          "ganjil",
-          time.mul,
-          time.sel,
-          day
-        ]);
       });
     });
 
@@ -445,9 +453,10 @@ async function seed() {
       classEnrolledCount.set(Number(r.id_kelas), Number(r.count));
     });
 
-    // Dynamic KRS (for each student)
-    console.log("⏳ Seeding dynamic KRS...");
-    const krsRows = mahasiswas.map(m => [
+    // Dynamic KRS (only for active students)
+    const activeMahasiswas = mahasiswas.filter(m => m.status_mahasiswa === 'aktif');
+    console.log(`⏳ Seeding dynamic KRS for ${activeMahasiswas.length} active students...`);
+    const krsRows = activeMahasiswas.map(m => [
       m.id_mahasiswa,
       randomTa,
       "ganjil",
@@ -456,11 +465,11 @@ async function seed() {
     ]);
     const krses = await bulkInsert(client, "krs", ["id_mahasiswa", "id_tahun_ajaran", "semester_aktif", "status_krs", "catatan"], krsRows);
 
-    // Dynamic Detail KRS (enrolling each student in 2-4 prodi classes, respecting prerequisites and quotas)
+    // Dynamic Detail KRS (enrolling each active student in 2-4 prodi classes, respecting prerequisites and quotas)
     console.log("⏳ Seeding dynamic detail KRS complying with triggers...");
     const detailKrsRows: any[][] = [];
 
-    mahasiswas.forEach(m => {
+    activeMahasiswas.forEach(m => {
       const krsRecord = krses.find(k => k.id_mahasiswa === m.id_mahasiswa);
       if (!krsRecord) return;
 
@@ -542,6 +551,14 @@ async function seed() {
       detailKrsRows
     );
 
+    // Reset KRS status to draft if no classes were successfully enrolled
+    console.log("🧹 Resetting status of empty KRS records to 'draft'...");
+    await client.query(`
+      UPDATE krs 
+      SET status_krs = 'draft'::status_krs
+      WHERE id_krs NOT IN (SELECT DISTINCT id_krs FROM detail_krs)
+    `);
+
     // Dynamic Pertemuan (3 per class)
     console.log("⏳ Seeding dynamic pertemuan...");
     const pertemuanRows: any[][] = [];
@@ -570,10 +587,10 @@ async function seed() {
     });
     await bulkInsert(client, "presensi", ["id_detail_krs", "id_pertemuan", "status_presensi"], presensiRows);
 
-    // Dynamic Tagihan & Pembayaran
+    // Dynamic Tagihan & Pembayaran (only for active students)
     console.log("⏳ Seeding dynamic tagihan & pembayaran...");
     const tagihanRows: any[][] = [];
-    mahasiswas.forEach(m => {
+    activeMahasiswas.forEach(m => {
       const nominal = getRandomElement([4500000, 5500000, 6000000, 7000000]);
       const status = Math.random() > 0.3 ? "lunas" : "belum";
       tagihanRows.push([m.id_mahasiswa, randomTa, "ganjil", "ukt", nominal, status, "2025-07-31"]);
