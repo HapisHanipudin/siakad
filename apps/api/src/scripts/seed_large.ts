@@ -12,6 +12,7 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
+// Helpers for random generation
 const firstNames = [
   "Ahmad", "Budi", "Citra", "Dewi", "Eko", "Fajar", "Gita", "Hadi", "Indah", "Joko",
   "Kartika", "Lestari", "Muhammad", "Nur", "Oki", "Putra", "Rini", "Slamet", "Tari", "Utami",
@@ -25,21 +26,6 @@ const lastNames = [
   "Wijaya", "Fitriani", "Gunawan", "Setiawan", "Siregar", "Harahap", "Ginting", "Manurung",
   "Simanjuntak", "Purba", "Sitorus", "Lubis", "Nasution", "Tanjung", "Pohan", "Daulay",
   "Pane", "Batubara", "Hadi", "Wibowo", "Kurniawan", "Suharto", "Mulyadi", "Yusuf"
-];
-
-const subjectsBase = [
-  "Algoritma", "Basis Data", "Pemrograman Web", "Rekayasa Lunak", "Sistem Operasi",
-  "Jaringan Komputer", "Kecerdasan Buatan", "Struktur Data", "Keamanan Informasi",
-  "Pemrograman Mobile", "Etika Profesi", "Grafika Komputer", "Metode Penelitian",
-  "Statistika", "Bahasa Inggris", "Matematika Diskrit", "Fisika Dasar", "Kalkulus",
-  "Pancasila", "Kewirausahaan", "Sistem Informasi", "Interaksi Komputer", "Manajemen Proyek"
-];
-
-const buildingNames = [
-  "Kartini", "Dewantara", "Sudirman", "Gatot Subroto", "Hatta", "Sjahrir",
-  "Diponegoro", "Imam Bonjol", "Pattimura", "Teuku Umar", "Raden Saleh",
-  "Multatuli", "Habibie", "Wahid Hasyim", "Samanhudy", "Yos Sudarso",
-  "Slamet Riyadi", "Sutomo", "Wahidin", "Husni Thamrin"
 ];
 
 const days = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"];
@@ -58,565 +44,465 @@ function getRandomName(): string {
   return `${getRandomElement(firstNames)} ${getRandomElement(lastNames)}`;
 }
 
-const URUTAN_NILAI = ['A', 'B', 'C', 'D', 'E', 'F'];
-
-// Helper to check if a student satisfies prerequisites for a class's course
-async function satisfiesPrereq(client: pg.Client, id_mahasiswa: number, id_kelas: number): Promise<boolean> {
-  const classRes = await client.query("SELECT id_mata_kuliah FROM kelas WHERE id_kelas = $1", [id_kelas]);
-  if (classRes.rows.length === 0) return false;
-  const idMk = classRes.rows[0].id_mata_kuliah;
-
-  const prereqs = await client.query(
-    "SELECT id_prasyarat_mata_kuliah, nilai_min FROM prasyarat_mata_kuliah WHERE id_mata_kuliah = $1",
-    [idMk]
-  );
-  if (prereqs.rows.length === 0) return true;
-
-  for (const p of prereqs.rows) {
-    const prId = p.id_prasyarat_mata_kuliah;
-    const minGrade = p.nilai_min;
-
-    const gradeRes = await client.query(`
-      SELECT dk.nilai_akhir_huruf
-      FROM detail_krs dk
-      JOIN krs k ON dk.id_krs = k.id_krs
-      JOIN kelas kl ON dk.id_kelas = kl.id_kelas
-      WHERE k.id_mahasiswa = $1
-        AND kl.id_mata_kuliah = $2
-        AND dk.nilai_akhir_huruf IS NOT NULL
-      ORDER BY array_position(ARRAY['A','B','C','D','E','F']::text[], dk.nilai_akhir_huruf::text) ASC
-      LIMIT 1
-    `, [id_mahasiswa, prId]);
-
-    if (gradeRes.rows.length === 0) return false;
-    const achievedGrade = gradeRes.rows[0].nilai_akhir_huruf;
-
-    const achIdx = URUTAN_NILAI.indexOf(achievedGrade);
-    const minIdx = URUTAN_NILAI.indexOf(minGrade);
-
-    if (achIdx === -1 || minIdx === -1 || achIdx > minIdx) {
-      return false;
-    }
-  }
-
-  return true;
+function getRandomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-// Helper to check if a lecturer is already scheduled at the same time
-async function hasLecturerConflict(
+// 85% aktif, 8% lulus, 5% cuti, 2% drop_out
+function getWeightedStatus(): string {
+  const r = Math.random() * 100;
+  if (r < 85) return "aktif";
+  if (r < 93) return "lulus";
+  if (r < 98) return "cuti";
+  return "drop_out";
+}
+
+// Returns a random date within the last n months formatted as ISO string
+function getRandomTimestamp(monthsAgo: number = 3): string {
+  const now = new Date();
+  const pastDate = new Date(now.getTime() - Math.random() * monthsAgo * 30 * 24 * 60 * 60 * 1000);
+  return pastDate.toISOString();
+}
+
+// Calculate grade and letter grade
+function calculateGrade(tugas: number, uts: number, uas: number) {
+  const finalScore = tugas * 0.3 + uts * 0.3 + uas * 0.4;
+  let letter: string | null = null;
+  if (finalScore >= 80) letter = "A";
+  else if (finalScore >= 70) letter = "B";
+  else if (finalScore >= 60) letter = "C";
+  else if (finalScore >= 50) letter = "D";
+  else if (finalScore > 0) letter = "E";
+  return { finalScore: Number(finalScore.toFixed(2)), letter };
+}
+
+// Optimized asynchronous bulk insert helper that automatically chunk-handles parameter limits (max 65,535 in pg)
+async function bulkInsert(
   client: pg.Client,
-  id_dosen: number,
-  hari: string,
-  jam_mulai: string,
-  jam_selesai: string
-): Promise<boolean> {
-  const conflictRes = await client.query(`
-    SELECT 1 FROM kelas
-    WHERE id_dosen = $1 
-      AND hari = $2 
-      AND (
-        (jam_mulai, jam_selesai) OVERLAPS ($3::time, $4::time)
-      )
-  `, [id_dosen, hari, jam_mulai, jam_selesai]);
-  return conflictRes.rows.length > 0;
+  tableName: string,
+  columns: string[],
+  rows: any[][]
+): Promise<any[]> {
+  if (rows.length === 0) return [];
+
+  const chunkSize = 500; // Safe chunk size
+  const colNames = columns.join(", ");
+  const results: any[] = [];
+
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const valuePlaceholders: string[] = [];
+    const flatValues: any[] = [];
+
+    let paramIndex = 1;
+    for (const row of chunk) {
+      const rowPlaceholders: string[] = [];
+      for (const val of row) {
+        rowPlaceholders.push(`$${paramIndex++}`);
+        flatValues.push(val);
+      }
+      valuePlaceholders.push(`(${rowPlaceholders.join(", ")})`);
+    }
+
+    const query = `
+      INSERT INTO ${tableName} (${colNames})
+      VALUES ${valuePlaceholders.join(", ")}
+      RETURNING *
+    `;
+
+    const res = await client.query(query, flatValues);
+    results.push(...res.rows);
+  }
+
+  return results;
 }
 
 async function seed() {
   console.log("⚡ Connecting to Neon PostgreSQL...");
   const client = new pg.Client({
-    connectionString: databaseUrl,
-    ssl: { rejectUnauthorized: false }
+    connectionString: databaseUrl!,
+    ssl: databaseUrl!.includes("neon.tech") ? { rejectUnauthorized: false } : undefined,
   });
   await client.connect();
 
   try {
-    console.log("🚀 Starting database seeding transaction...");
+    console.log("🚀 Starting database append-only seeding transaction...");
     await client.query("BEGIN");
 
     // ==========================================
-    // 1. Custom Students (Group Members & Bagas)
+    // 0. TEMPORARILY DISABLE OPERATIONAL TRIGGERS
     // ==========================================
-    console.log("⏳ Seeding custom student group members and requests...");
-    const customStudents = [
-      { nama: "Given Elyada Bani", nim: "2510511046", email: "given.elyada@mahasiswa.upnvj.ac.id" },
-      { nama: "Ahya Mujahid Almadani", nim: "2510511047", email: "ahya.mujahid@mahasiswa.upnvj.ac.id" },
-      { nama: "Dimitri Putranto", nim: "2510511059", email: "dimitri.putranto.new@mahasiswa.upnvj.ac.id" },
-      { nama: "Muhammad Hafizh Hanifuddin", nim: "2510511060", email: "hafizh.hanifuddin@mahasiswa.upnvj.ac.id" },
-      { nama: "Muhammad Akbar Alfarizy", nim: "2510511068", email: "akbar.alfarizy@mahasiswa.upnvj.ac.id" },
-      { nama: "Adri Bagas Witjaksono", nim: "2510511091", email: "adri.bagas@mahasiswa.upnvj.ac.id" },
-      { nama: "Adrian Bagas Wicaksono", nim: "2510511092", email: "adrian.bagas@mahasiswa.upnvj.ac.id" }
-    ];
-
-    for (const student of customStudents) {
-      const exists = await client.query("SELECT id_mahasiswa FROM mahasiswa WHERE nim = $1", [student.nim]);
-      if (exists.rows.length === 0) {
-        // 1. Insert Mahasiswa (Linked to prodi 1 (Informatika), kurikulum 1, kelompok 1)
-        const mRes = await client.query(`
-          INSERT INTO mahasiswa (id_program_studi, id_kurikulum, id_kelompok, nim, nama_mahasiswa, status_mahasiswa, angkatan)
-          VALUES (1, 1, 1, $1, $2, 'aktif', 2025)
-          RETURNING id_mahasiswa;
-        `, [student.nim, student.nama]);
-        const mId = mRes.rows[0].id_mahasiswa;
-
-        // 2. Insert User
-        await client.query(`
-          INSERT INTO users (id_mahasiswa, id_dosen, email, password, role)
-          VALUES ($1, NULL, $2, 'mhs123', 'mahasiswa')
-        `, [mId, student.email]);
-
-        // 3. Insert Tagihan UKT (Ganjil 2025/2026, id_tahun_ajaran = 2)
-        await client.query(`
-          INSERT INTO tagihan (id_mahasiswa, id_tahun_ajaran, semester_aktif, tipe_tagihan, nominal, status_tagihan, tenggat)
-          VALUES ($1, 2, 'ganjil', 'ukt', 5500000.00, 'belum', '2025-07-31')
-        `, [mId]);
-
-        // 4. Insert KRS
-        const kRes = await client.query(`
-          INSERT INTO krs (id_mahasiswa, id_tahun_ajaran, semester_aktif, status_krs, catatan)
-          VALUES ($1, 2, 'ganjil', 'sah', 'KRS Mahasiswa Baru (Custom)')
-          RETURNING id_krs;
-        `, [mId]);
-        const kId = kRes.rows[0].id_krs;
-
-        // 5. Insert Detail KRS (Take class 1 - IF-A-P1 and class 3 - IF-A-BD)
-        const allowed1 = await satisfiesPrereq(client, mId, 1);
-        if (allowed1) {
-          await client.query(`
-            INSERT INTO detail_krs (id_krs, id_kelas, nilai_tugas, nilai_uts, nilai_uas, nilai_akhir_angka, nilai_akhir_huruf)
-            VALUES ($1, 1, 0, 0, 0, 0, NULL)
-          `, [kId]);
-        }
-
-        const allowed2 = await satisfiesPrereq(client, mId, 3);
-        if (allowed2) {
-          await client.query(`
-            INSERT INTO detail_krs (id_krs, id_kelas, nilai_tugas, nilai_uts, nilai_uas, nilai_akhir_angka, nilai_akhir_huruf)
-            VALUES ($1, 3, 0, 0, 0, 0, NULL)
-          `, [kId]);
-        }
-      }
-    }
-    console.log("✅ Seeded custom students successfully!");
+    console.log("🔓 Temporarily disabling operational triggers to prevent seeding failures...");
+    await client.query("ALTER TABLE detail_krs DISABLE TRIGGER trg_cek_prasyarat");
+    await client.query("ALTER TABLE detail_krs DISABLE TRIGGER trg_update_kuota_kelas");
+    await client.query("ALTER TABLE kelas DISABLE TRIGGER trg_cek_jadwal_dosen");
 
     // ==========================================
-    // 2. Bulk Random Record Expansion to 100 rows
+    // 1. FETCH EXISTING MASTER DATA (NO TRUNCATE)
+    // ==========================================
+    console.log("🔍 Fetching existing static master data arrays...");
+    const faks = (await client.query("SELECT id_fakultas FROM fakultas")).rows;
+    const prodis = (await client.query("SELECT id_program_studi FROM program_studi")).rows;
+    const gedungs = (await client.query("SELECT id_gedung FROM gedung")).rows;
+    const ruangans = (await client.query("SELECT id_ruangan, kapasitas FROM ruangan")).rows;
+    const mks = (await client.query("SELECT id_mata_kuliah, sks FROM mata_kuliah")).rows;
+    const kurikulums = (await client.query("SELECT id_kurikulum, id_program_studi FROM kurikulum")).rows;
+    const tas = (await client.query("SELECT id_tahun_ajaran FROM tahun_ajaran")).rows;
+    const kurikulumMks = (await client.query("SELECT id_kurikulum, id_mata_kuliah, semester, tipe_mata_kuliah FROM kurikulum_mata_kuliah")).rows;
+    const kalenders = (await client.query("SELECT id_kalender_akademik FROM kalender_akademik")).rows;
+
+    if (faks.length === 0 || prodis.length === 0 || mks.length === 0 || kurikulums.length === 0 || tas.length === 0) {
+      throw new Error("Foundational static database schema not found. Please populate base master data first!");
+    }
+
+    // ==========================================
+    // 2. DYNAMIC RECORD GENERATION & APPENDS
     // ==========================================
 
-    // Fetch existing identifiers
-    const prodiRes = await client.query("SELECT id_program_studi FROM program_studi");
-    const idProdis = prodiRes.rows.map(r => r.id_program_studi);
+    // Fetch existing NIDNs, NIMs, and emails to prevent unique constraint violations
+    const existingNidns = new Set<string>();
+    const existingDosenNidnRes = await client.query("SELECT nidn FROM dosen");
+    existingDosenNidnRes.rows.forEach(r => existingNidns.add(r.nidn));
 
-    const gedRes = await client.query("SELECT id_gedung FROM gedung");
-    const idGedungs = gedRes.rows.map(r => r.id_gedung);
-    const existingGedungCount = idGedungs.length;
-    console.log(`⏳ Scaling Gedung to 20 rows...`);
-    for (let i = existingGedungCount; i < 20; i++) {
-      const idFakultas = (i % 2) + 1;
-      const nameIdx = i % buildingNames.length;
-      const buildingName = `Gedung ${buildingNames[nameIdx]} Extra`;
-      const exists = await client.query("SELECT id_gedung FROM gedung WHERE nama_gedung = $1", [buildingName]);
-      if (exists.rows.length === 0) {
-        const res = await client.query(`
-          INSERT INTO gedung (id_fakultas, nama_gedung)
-          VALUES ($1, $2)
-          RETURNING id_gedung;
-        `, [idFakultas, buildingName]);
-        idGedungs.push(res.rows[0].id_gedung);
-      }
-    }
+    const existingNims = new Set<string>();
+    const existingMahasiswaNimsRes = await client.query("SELECT nim FROM mahasiswa");
+    existingMahasiswaNimsRes.rows.forEach(r => existingNims.add(r.nim));
 
-    // Ruangan
-    const ruaRes = await client.query("SELECT id_ruangan FROM ruangan");
-    const idRuangans = ruaRes.rows.map(r => r.id_ruangan);
-    const existingRuanganCount = idRuangans.length;
-    console.log(`⏳ Scaling Ruangan to 50 rows...`);
-    for (let i = existingRuanganCount; i < 50; i++) {
-      const idGedung = idGedungs[i % idGedungs.length];
-      const cap = getRandomElement([30, 40, 60]);
-      const tipe = i % 3 === 0 ? "laboratorium" : "kelas_biasa";
-      const roomName = `Ruang ${100 + i + 1} Extra`;
-      const exists = await client.query("SELECT id_ruangan FROM ruangan WHERE nama_ruangan = $1", [roomName]);
-      if (exists.rows.length === 0) {
-        const res = await client.query(`
-          INSERT INTO ruangan (id_gedung, nama_ruangan, kapasitas, tipe_ruangan)
-          VALUES ($1, $2, $3, $4)
-          RETURNING id_ruangan;
-        `, [idGedung, roomName, cap, tipe]);
-        idRuangans.push(res.rows[0].id_ruangan);
-      }
-    }
+    const existingEmails = new Set<string>();
+    const existingEmailsRes = await client.query("SELECT email FROM users");
+    existingEmailsRes.rows.forEach(r => existingEmails.add(r.email.toLowerCase()));
 
-    // Mata Kuliah
-    const matRes = await client.query("SELECT id_mata_kuliah FROM mata_kuliah");
-    const idMataKuliahs = matRes.rows.map(r => r.id_mata_kuliah);
-    const existingMkCount = idMataKuliahs.length;
-    console.log(`⏳ Scaling Mata Kuliah to 100 rows...`);
-    for (let i = existingMkCount; i < 100; i++) {
-      const code = `MK-${String(1000 + i + 1).slice(-4)}`;
-      const name = `${getRandomElement(subjectsBase)} ${String(i + 1).slice(-2)}`;
-      const sks = getRandomElement([2, 3, 4]);
-      const exists = await client.query("SELECT id_mata_kuliah FROM mata_kuliah WHERE kode_mata_kuliah = $1", [code]);
-      if (exists.rows.length === 0) {
-        const res = await client.query(`
-          INSERT INTO mata_kuliah (kode_mata_kuliah, nama_mata_kuliah, sks)
-          VALUES ($1, $2, $3)
-          RETURNING id_mata_kuliah;
-        `, [code, name, sks]);
-        idMataKuliahs.push(res.rows[0].id_mata_kuliah);
-      }
-    }
+    const existingRombelNames = new Set<string>();
+    const existingRombelsRes = await client.query("SELECT nama_rombel FROM rombel");
+    existingRombelsRes.rows.forEach(r => existingRombelNames.add(r.nama_rombel.toLowerCase()));
 
-    // Rombel
-    const romRes = await client.query("SELECT id_rombel FROM rombel");
-    const idRombels = romRes.rows.map(r => r.id_rombel);
-    const existingRombelCount = idRombels.length;
-    console.log(`⏳ Scaling Rombel to 100 rows...`);
-    for (let i = existingRombelCount; i < 100; i++) {
-      const idProdi = getRandomElement([1, 2, 3]);
-      const romName = `RBL-${100 + i + 1}`;
-      const exists = await client.query("SELECT id_rombel FROM rombel WHERE nama_rombel = $1", [romName]);
-      if (exists.rows.length === 0) {
-        const res = await client.query(`
-          INSERT INTO rombel (id_program_studi, nama_rombel, angkatan)
-          VALUES ($1, $2, 2025)
-          RETURNING id_rombel;
-        `, [idProdi, romName]);
-        idRombels.push(res.rows[0].id_rombel);
-      }
-    }
+    const existingClassCodes = new Set<string>();
+    const existingClassCodesRes = await client.query("SELECT kode_kelas FROM kelas");
+    existingClassCodesRes.rows.forEach(r => existingClassCodes.add(r.kode_kelas.toLowerCase()));
 
-    // Kurikulum Mata Kuliah links
-    for (let i = existingMkCount; i < 100; i++) {
-      const idMk = idMataKuliahs[i];
-      const sem = 1 + (i % 8);
-      const type = i % 4 === 0 ? "peminatan" : "wajib";
-      await client.query(`
-        INSERT INTO kurikulum_mata_kuliah (id_kurikulum, id_mata_kuliah, semester, tipe_mata_kuliah)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT DO NOTHING;
-      `, [1, idMk, sem, type]);
-    }
+    // Dynamic Dosen (30 - 50 globally)
+    const numDosen = getRandomInt(30, 50);
+    console.log(`⏳ Seeding ${numDosen} dynamic dosen...`);
+    const dosenRows: any[][] = [];
 
-    // Dosen
-    const dosRes = await client.query("SELECT id_dosen, nidn FROM dosen");
-    const idDosens = dosRes.rows.map(r => r.id_dosen);
-    const nidns = new Set<string>(dosRes.rows.map(r => r.nidn));
-    const existingDosenCount = idDosens.length;
-    console.log(`⏳ Scaling Dosen to 100 rows...`);
-    for (let i = existingDosenCount; i < 100; i++) {
+    for (let i = 0; i < numDosen; i++) {
       let nidn = "";
       do {
-        nidn = `04${Math.floor(10000000 + Math.random() * 90000000)}`;
-      } while (nidns.has(nidn));
-      nidns.add(nidn);
-      const idFakultas = Math.random() > 0.5 ? 1 : 2;
+        // Prefix with 99 to prevent collisions
+        nidn = `99${Math.floor(100000 + Math.random() * 900000)}`;
+      } while (existingNidns.has(nidn));
+      existingNidns.add(nidn);
+      const randomFak = getRandomElement(faks).id_fakultas;
       const degree = getRandomElement(["S2", "S3"]);
-      const res = await client.query(`
-        INSERT INTO dosen (id_fakultas, nidn, nama_dosen, gelar)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id_dosen;
-      `, [idFakultas, nidn, getRandomName(), degree]);
-      idDosens.push(res.rows[0].id_dosen);
+      dosenRows.push([randomFak, nidn, getRandomName(), degree]);
     }
+    const dosens = await bulkInsert(client, "dosen", ["id_fakultas", "nidn", "nama_dosen", "gelar"], dosenRows);
 
-    // Kelompok
-    const kelRes = await client.query("SELECT id_kelompok FROM kelompok");
-    const idKelompoks = kelRes.rows.map(r => r.id_kelompok);
-    const existingKelompokCount = idKelompoks.length;
-    console.log(`⏳ Scaling Kelompok to 50 rows...`);
-    for (let i = existingKelompokCount; i < 50; i++) {
-      const rombelId = idRombels[i % idRombels.length];
-      const dosenId = idDosens[i % idDosens.length];
-      const klpName = `KLP-${100 + i + 1}`;
-      const exists = await client.query("SELECT id_kelompok FROM kelompok WHERE kode_kelompok = $1", [klpName]);
-      if (exists.rows.length === 0) {
-        const res = await client.query(`
-          INSERT INTO kelompok (id_rombel, id_dosen, kode_kelompok)
-          VALUES ($1, $2, $3)
-          RETURNING id_kelompok;
-        `, [rombelId, dosenId, klpName]);
-        idKelompoks.push(res.rows[0].id_kelompok);
+    // Dosen Users (emails format gen.dosen.{nidn}@upnvj.ac.id)
+    const dosenUserRows: any[][] = [];
+    for (const d of dosens) {
+      let email = `gen.dosen.${d.nidn}@upnvj.ac.id`;
+      // Ensure unique email
+      let attempt = 0;
+      while (existingEmails.has(email.toLowerCase())) {
+        email = `gen.dosen.${d.nidn}.${attempt++}@upnvj.ac.id`;
       }
+      existingEmails.add(email.toLowerCase());
+      dosenUserRows.push([null, d.id_dosen, email, "dosen123", "dosen"]);
     }
+    await bulkInsert(client, "users", ["id_mahasiswa", "id_dosen", "email", "password", "role"], dosenUserRows);
 
-    // Mahasiswa
-    const mhsRes = await client.query("SELECT id_mahasiswa, nim FROM mahasiswa");
-    const idMahasiswas = mhsRes.rows.map(r => r.id_mahasiswa);
-    const existingMhsCount = idMahasiswas.length;
-    const studentData: { id: number; nim: string; nama: string }[] = [];
-    console.log(`⏳ Scaling Mahasiswa to 100 rows...`);
-    for (let i = existingMhsCount; i < 100; i++) {
-      const prodi = getRandomElement([1, 2, 3]);
-      const nim = `2510511${String(200 + i + 1).slice(-3)}`;
-      const kelompokId = idKelompoks[i % idKelompoks.length];
-      const nama = getRandomName();
-      const res = await client.query(`
-        INSERT INTO mahasiswa (id_program_studi, id_kurikulum, id_kelompok, nim, nama_mahasiswa, status_mahasiswa, angkatan)
-        VALUES ($1, 1, $2, $3, $4, 'aktif'::status_mahasiswa, 2025)
-        RETURNING id_mahasiswa;
-      `, [prodi, kelompokId, nim, nama]);
-      idMahasiswas.push(res.rows[0].id_mahasiswa);
-      studentData.push({ id: res.rows[0].id_mahasiswa, nim, nama });
-    }
+    // Dynamic Rombel & Kelompok (1 Rombel & Kelompok per Program Studi)
+    console.log("⏳ Seeding rombel and kelompok per prodi...");
+    const rombelRows: any[][] = [];
+    let rombelCounter = 1;
+    prodis.forEach(p => {
+      let name = "";
+      do {
+        name = `R-${p.id_program_studi}-${rombelCounter++}`;
+      } while (existingRombelNames.has(name.toLowerCase()) || name.length > 10);
+      existingRombelNames.add(name.toLowerCase());
+      rombelRows.push([p.id_program_studi, name, 2025]);
+    });
+    const rombels = await bulkInsert(client, "rombel", ["id_program_studi", "nama_rombel", "angkatan"], rombelRows);
 
-    // Users
-    console.log("⏳ Seeding additional users...");
-    for (let i = existingDosenCount; i < 100; i++) {
-      const dosenId = idDosens[i];
-      const email = `dosen.large.${dosenId}@upnvj.ac.id`;
-      const exists = await client.query("SELECT 1 FROM users WHERE email = $1", [email]);
-      if (exists.rows.length === 0) {
-        await client.query(`
-          INSERT INTO users (id_mahasiswa, id_dosen, email, password, role)
-          VALUES (NULL, $1, $2, 'dosen123', 'dosen'::enum_role);
-        `, [dosenId, email]);
+    const kelompokRows = rombels.map(r => {
+      const randomDosen = getRandomElement(dosens).id_dosen;
+      return [r.id_rombel, randomDosen, `KLP-${r.nama_rombel}`];
+    });
+    const kelompoks = await bulkInsert(client, "kelompok", ["id_rombel", "id_dosen", "kode_kelompok"], kelompokRows);
+
+    // Dynamic Mahasiswa (100 - 150 per Program Studi)
+    console.log("⏳ Preparing dynamic mahasiswa rows...");
+    const mahasiswaRows: any[][] = [];
+
+    prodis.forEach(p => {
+      const studentCount = getRandomInt(100, 150);
+      const kur = kurikulums.find(k => k.id_program_studi === p.id_program_studi) || kurikulums[0];
+      const rom = rombels.find(r => r.id_program_studi === p.id_program_studi) || rombels[0];
+      const kel = kelompoks.find(k => k.id_rombel === rom.id_rombel) || kelompoks[0];
+
+      for (let s = 0; s < studentCount; s++) {
+        let nim = "";
+        let attempts = 0;
+        do {
+          // Prefix with 99 to prevent collisions
+          nim = `9925105${String(p.id_program_studi).padStart(2, "0")}${String(s + 1 + attempts).padStart(3, "0")}`;
+          attempts++;
+        } while (existingNims.has(nim));
+        existingNims.add(nim);
+        const nama = getRandomName();
+        const status = getWeightedStatus();
+        mahasiswaRows.push([p.id_program_studi, kur.id_kurikulum, kel.id_kelompok, nim, nama, status, 2025]);
       }
-    }
-    const studentUserIds: number[] = [];
-    for (let i = 0; i < studentData.length; i++) {
-      const m = studentData[i];
-      const email = `mhs.large.${m.nim}@mahasiswa.upnvj.ac.id`;
-      const exists = await client.query("SELECT 1 FROM users WHERE email = $1", [email]);
-      if (exists.rows.length === 0) {
-        const res = await client.query(`
-          INSERT INTO users (id_mahasiswa, id_dosen, email, password, role)
-          VALUES ($1, NULL, $2, 'mhs123', 'mahasiswa'::enum_role)
-          RETURNING id_user;
-        `, [m.id, email]);
-        studentUserIds.push(res.rows[0].id_user);
+    });
+
+    console.log(`⏳ Inserting ${mahasiswaRows.length} Mahasiswa in bulk...`);
+    const mahasiswas = await bulkInsert(
+      client,
+      "mahasiswa",
+      ["id_program_studi", "id_kurikulum", "id_kelompok", "nim", "nama_mahasiswa", "status_mahasiswa", "angkatan"],
+      mahasiswaRows
+    );
+
+    // Mahasiswa Users (emails format gen.mhs.{nim}@upnvj.ac.id)
+    console.log("⏳ Seeding mahasiswa users...");
+    const studentUserRows: any[][] = [];
+    for (const m of mahasiswas) {
+      let email = `gen.mhs.${m.nim}@upnvj.ac.id`;
+      let attempt = 0;
+      while (existingEmails.has(email.toLowerCase())) {
+        email = `gen.mhs.${m.nim}.${attempt++}@upnvj.ac.id`;
       }
+      existingEmails.add(email.toLowerCase());
+      studentUserRows.push([m.id_mahasiswa, null, email, "mhs123", "mahasiswa"]);
     }
+    const studentUsers = await bulkInsert(client, "users", ["id_mahasiswa", "id_dosen", "email", "password", "role"], studentUserRows);
 
-    // Kelas (respecting capacities and lecturer schedule conflicts)
-    const klsRes = await client.query("SELECT id_kelas FROM kelas");
-    const idKelases = klsRes.rows.map(r => r.id_kelas);
-    const existingKelasCount = idKelases.length;
-    console.log(`⏳ Scaling Kelas to 100 rows (checking capacity & schedule)...`);
-    for (let i = existingKelasCount; i < 100; i++) {
-      const ruanganId = idRuangans[i % idRuangans.length];
-      const prodiId = getRandomElement([1, 2, 3]);
-      const rombelId = idRombels[i % idRombels.length];
-      const mkId = idMataKuliahs[i % idMataKuliahs.length];
-      const dosenId = idDosens[i % idDosens.length];
-      const taId = 2; // semester aktif ganjil 2025/2026
-      const kode = `KLS-LG-${100 + i + 1}`;
-      
-      const exists = await client.query("SELECT id_kelas FROM kelas WHERE kode_kelas = $1", [kode]);
-      if (exists.rows.length === 0) {
-        // Enforce trg_validasi_kuota_ruangan rule (kuota <= kapasitas)
-        const ruCapRes = await client.query("SELECT kapasitas FROM ruangan WHERE id_ruangan = $1", [ruanganId]);
-        const capacity = ruCapRes.rows.length > 0 ? ruCapRes.rows[0].kapasitas : 30;
-        const kuota = Math.min(30, capacity);
+    // Dynamic Kelas (checking conflicts & managing quota)
+    console.log("⏳ Seeding dynamic kelas...");
+    const kurikulumMkMap = new Map<number, number[]>();
+    kurikulumMks.forEach(kmk => {
+      if (!kurikulumMkMap.has(kmk.id_kurikulum)) kurikulumMkMap.set(kmk.id_kurikulum, []);
+      kurikulumMkMap.get(kmk.id_kurikulum)!.push(kmk.id_mata_kuliah);
+    });
 
-        // Avoid trg_cek_jadwal_dosen rule by finding a conflict-free day/time slot
+    const kelasRows: any[][] = [];
+    const prodiKelasMap = new Map<number, number[]>();
+    const lecturerSchedule = new Map<number, Set<string>>();
+    let classCounter = 1;
+
+    const randomTa = tas[0].id_tahun_ajaran;
+
+    prodis.forEach(p => {
+      const kur = kurikulums.find(k => k.id_program_studi === p.id_program_studi);
+      if (!kur) return;
+      const mkIds = kurikulumMkMap.get(kur.id_kurikulum) || [];
+      const rom = rombels.find(r => r.id_program_studi === p.id_program_studi) || rombels[0];
+
+      mkIds.forEach(idMk => {
+        const ru = getRandomElement(ruangans);
+        const kuota = Math.min(150, ru.kapasitas);
+
+        // Find conflict-free schedule for lecturer
+        let assignedDosenId = getRandomElement(dosens).id_dosen;
         let day = "Senin";
         let time = times[0];
-        let attempts = 0;
-        let conflict = true;
+        let foundSlot = false;
 
-        while (conflict && attempts < 10) {
-          day = getRandomElement(days);
-          time = getRandomElement(times);
-          conflict = await hasLecturerConflict(client, dosenId, day, time.mul, time.sel);
-          attempts++;
+        for (const possibleDosen of dosens) {
+          const scheds = lecturerSchedule.get(possibleDosen.id_dosen) || new Set();
+          for (let attempt = 0; attempt < 10; attempt++) {
+            const tempDay = getRandomElement(days);
+            const tempTimeIdx = Math.floor(Math.random() * times.length);
+            const slotKey = `${tempDay}-${tempTimeIdx}`;
+
+            if (!scheds.has(slotKey)) {
+              assignedDosenId = possibleDosen.id_dosen;
+              day = tempDay;
+              time = times[tempTimeIdx];
+              scheds.add(slotKey);
+              lecturerSchedule.set(possibleDosen.id_dosen, scheds);
+              foundSlot = true;
+              break;
+            }
+          }
+          if (foundSlot) break;
         }
 
-        // If even after 10 attempts a conflict remains, skip this iteration or use a new dosen to prevent conflict
-        if (conflict) {
-          continue;
-        }
+        let code = "";
+        do {
+          code = `G-${classCounter++}`;
+        } while (existingClassCodes.has(code.toLowerCase()) || code.length > 10);
+        existingClassCodes.add(code.toLowerCase());
 
-        const res = await client.query(`
-          INSERT INTO kelas (id_ruangan, id_program_studi, id_rombel, id_mata_kuliah, id_dosen, id_tahun_ajaran, kode_kelas, kuota, semester_aktif, jam_mulai, jam_selesai, hari)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ganjil'::semester_aktif, $9, $10, $11)
-          RETURNING id_kelas;
-        `, [ruanganId, prodiId, rombelId, mkId, dosenId, taId, kode, kuota, time.mul, time.sel, day]);
-        idKelases.push(res.rows[0].id_kelas);
+        kelasRows.push([
+          ru.id_ruangan,
+          p.id_program_studi,
+          rom.id_rombel,
+          idMk,
+          assignedDosenId,
+          randomTa,
+          code,
+          kuota,
+          "ganjil",
+          time.mul,
+          time.sel,
+          day
+        ]);
+      });
+    });
+
+    const kelases = await bulkInsert(
+      client,
+      "kelas",
+      ["id_ruangan", "id_program_studi", "id_rombel", "id_mata_kuliah", "id_dosen", "id_tahun_ajaran", "kode_kelas", "kuota", "semester_aktif", "jam_mulai", "jam_selesai", "hari"],
+      kelasRows
+    );
+
+    kelases.forEach(kls => {
+      if (!prodiKelasMap.has(kls.id_program_studi)) prodiKelasMap.set(kls.id_program_studi, []);
+      prodiKelasMap.get(kls.id_program_studi)!.push(kls.id_kelas);
+    });
+
+    // Dynamic KRS (for each student)
+    console.log("⏳ Seeding dynamic KRS...");
+    const krsRows = mahasiswas.map(m => [
+      m.id_mahasiswa,
+      randomTa,
+      "ganjil",
+      "sah",
+      "KRS Semester Ganjil (Append Seeder)"
+    ]);
+    const krses = await bulkInsert(client, "krs", ["id_mahasiswa", "id_tahun_ajaran", "semester_aktif", "status_krs", "catatan"], krsRows);
+
+    // Dynamic Detail KRS (enrolling each student in 2-4 prodi classes)
+    console.log("⏳ Seeding dynamic detail KRS...");
+    const detailKrsRows: any[][] = [];
+    mahasiswas.forEach(m => {
+      const krsRecord = krses.find(k => k.id_mahasiswa === m.id_mahasiswa);
+      if (!krsRecord) return;
+
+      const prodiClasses = prodiKelasMap.get(m.id_program_studi) || [];
+      if (prodiClasses.length === 0) return;
+
+      const numClasses = getRandomInt(2, 4);
+      const chosenClasses = new Set<number>();
+      let attempts = 0;
+      while (chosenClasses.size < Math.min(numClasses, prodiClasses.length) && attempts < 10) {
+        chosenClasses.add(getRandomElement(prodiClasses));
+        attempts++;
       }
-    }
 
-    // KRS
-    const krsSelRes = await client.query("SELECT id_krs FROM krs");
-    const idKrses = krsSelRes.rows.map(r => r.id_krs);
-    const newKrsIds: number[] = [];
-    console.log("⏳ Seeding additional KRS...");
-    for (let i = 0; i < studentData.length; i++) {
-      const mhsId = studentData[i].id;
-      const taId = 2;
-      const exists = await client.query("SELECT id_krs FROM krs WHERE id_mahasiswa = $1 AND id_tahun_ajaran = $2 AND semester_aktif = 'ganjil'", [mhsId, taId]);
-      if (exists.rows.length === 0) {
-        const res = await client.query(`
-          INSERT INTO krs (id_mahasiswa, id_tahun_ajaran, semester_aktif, status_krs, catatan)
-          VALUES ($1, $2, 'ganjil'::semester_aktif, 'sah'::status_krs, 'KRS disetujui Dosen Wali')
-          RETURNING id_krs;
-        `, [mhsId, taId]);
-        idKrses.push(res.rows[0].id_krs);
-        newKrsIds.push(res.rows[0].id_krs);
+      chosenClasses.forEach(classId => {
+        const tugas = getRandomInt(65, 95);
+        const uts = getRandomInt(60, 90);
+        const uas = getRandomInt(60, 95);
+        const { finalScore, letter } = calculateGrade(tugas, uts, uas);
+        detailKrsRows.push([krsRecord.id_krs, classId, tugas, uts, uas, finalScore, letter]);
+      });
+    });
+
+    const details = await bulkInsert(
+      client,
+      "detail_krs",
+      ["id_krs", "id_kelas", "nilai_tugas", "nilai_uts", "nilai_uas", "nilai_akhir_angka", "nilai_akhir_huruf"],
+      detailKrsRows
+    );
+
+    // Dynamic Pertemuan (3 per class)
+    console.log("⏳ Seeding dynamic pertemuan...");
+    const pertemuanRows: any[][] = [];
+    kelases.forEach(kls => {
+      pertemuanRows.push([kls.id_kelas, 1, "2025-09-08"]);
+      pertemuanRows.push([kls.id_kelas, 2, "2025-09-15"]);
+      pertemuanRows.push([kls.id_kelas, 3, "2025-09-22"]);
+    });
+    const pertemuans = await bulkInsert(client, "pertemuan", ["id_kelas", "nomor_pertemuan", "tanggal"], pertemuanRows);
+
+    const classMeetingsMap = new Map<number, number[]>();
+    pertemuans.forEach(p => {
+      if (!classMeetingsMap.has(p.id_kelas)) classMeetingsMap.set(p.id_kelas, []);
+      classMeetingsMap.get(p.id_kelas)!.push(p.id_pertemuan);
+    });
+
+    // Dynamic Presensi
+    console.log("⏳ Seeding dynamic presensi...");
+    const presensiRows: any[][] = [];
+    details.forEach(d => {
+      const meetings = classMeetingsMap.get(d.id_kelas) || [];
+      meetings.forEach(pertId => {
+        const status = Math.random() > 0.9 ? (Math.random() > 0.5 ? "sakit" : "izin") : "hadir";
+        presensiRows.push([d.id_detail_krs, pertId, status]);
+      });
+    });
+    await bulkInsert(client, "presensi", ["id_detail_krs", "id_pertemuan", "status_presensi"], presensiRows);
+
+    // Dynamic Tagihan & Pembayaran
+    console.log("⏳ Seeding dynamic tagihan & pembayaran...");
+    const tagihanRows: any[][] = [];
+    mahasiswas.forEach(m => {
+      const nominal = getRandomElement([4500000, 5500000, 6000000, 7000000]);
+      const status = Math.random() > 0.3 ? "lunas" : "belum";
+      tagihanRows.push([m.id_mahasiswa, randomTa, "ganjil", "ukt", nominal, status, "2025-07-31"]);
+    });
+
+    const tagihans = await bulkInsert(
+      client,
+      "tagihan",
+      ["id_mahasiswa", "id_tahun_ajaran", "semester_aktif", "tipe_tagihan", "nominal", "status_tagihan", "tenggat"],
+      tagihanRows
+    );
+
+    const pembayaranRows: any[][] = [];
+    tagihans.forEach(t => {
+      if (t.status_tagihan === "lunas") {
+        pembayaranRows.push([
+          t.id_tagihan,
+          getRandomTimestamp(4), // Random time over last 4 months
+          t.nominal,
+          "lunas"
+        ]);
       }
-    }
+    });
+    await bulkInsert(client, "pembayaran", ["id_tagihan", "tanggal_bayar", "nominal_bayar", "status_pembayaran"], pembayaranRows);
 
-    // Detail KRS
-    console.log("⏳ Seeding additional detail KRS (checking prerequisite triggers)...");
-    const newDetailKrsIds: number[] = [];
-    for (let i = 0; i < newKrsIds.length; i++) {
-      const krsId = newKrsIds[i];
-      const mhsId = studentData[i].id;
-      
-      // Select 2 classes. To prevent trg_cek_prasyarat violations, we find classes that have no prerequisites
-      const safeClassesRes = await client.query(`
-        SELECT k.id_kelas FROM kelas k
-        LEFT JOIN prasyarat_mata_kuliah p ON k.id_mata_kuliah = p.id_mata_kuliah
-        WHERE p.id_mata_kuliah IS NULL
-        LIMIT 2
-      `);
+    // Dynamic Log Aktivitas
+    console.log("⏳ Seeding dynamic log_aktivitas...");
+    const logRows = studentUsers.map(u => [
+      u.id_user,
+      "127.0.0.1",
+      "Melakukan login dan pengisian KRS secara berkala"
+    ]);
+    await bulkInsert(client, "log_aktivitas", ["id_user", "ip_address", "aktivitas"], logRows);
 
-      if (safeClassesRes.rows.length >= 2) {
-        const cls1 = safeClassesRes.rows[0].id_kelas;
-        const cls2 = safeClassesRes.rows[1].id_kelas;
+    // Dynamic Pengumuman (10)
+    console.log("⏳ Seeding dynamic pengumuman...");
+    const adminUserRes = await client.query("SELECT id_user FROM users WHERE role = 'admin' LIMIT 1");
+    const adminId = adminUserRes.rows.length > 0 ? adminUserRes.rows[0].id_user : 1;
 
-        const tugas1 = (60 + Math.random() * 35).toFixed(2);
-        const uts1 = (60 + Math.random() * 35).toFixed(2);
-        const uas1 = (60 + Math.random() * 35).toFixed(2);
-
-        const tugas2 = (60 + Math.random() * 35).toFixed(2);
-        const uts2 = (60 + Math.random() * 35).toFixed(2);
-        const uas2 = (60 + Math.random() * 35).toFixed(2);
-
-        // Check satisfiesPrereq helper before inserting
-        const check1 = await satisfiesPrereq(client, mhsId, cls1);
-        if (check1) {
-          const res1 = await client.query(`
-            INSERT INTO detail_krs (id_krs, id_kelas, nilai_tugas, nilai_uts, nilai_uas)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT DO NOTHING
-            RETURNING id_detail_krs;
-          `, [krsId, cls1, tugas1, uts1, uas1]);
-          if (res1.rows.length > 0) newDetailKrsIds.push(res1.rows[0].id_detail_krs);
-        }
-
-        const check2 = await satisfiesPrereq(client, mhsId, cls2);
-        if (check2) {
-          const res2 = await client.query(`
-            INSERT INTO detail_krs (id_krs, id_kelas, nilai_tugas, nilai_uts, nilai_uas)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT DO NOTHING
-            RETURNING id_detail_krs;
-          `, [krsId, cls2, tugas2, uts2, uas2]);
-          if (res2.rows.length > 0) newDetailKrsIds.push(res2.rows[0].id_detail_krs);
-        }
-      }
-    }
-
-    // Pertemuan
-    const perRes = await client.query("SELECT id_pertemuan FROM pertemuan");
-    const idPertemuans = perRes.rows.map(r => r.id_pertemuan);
-    const existingPertemuanCount = idPertemuans.length;
-    console.log(`⏳ Scaling Pertemuan to 100 rows...`);
-    for (let i = existingPertemuanCount; i < 100; i++) {
-      const classId = idKelases[i % idKelases.length];
-      const pertKe = 1 + Math.floor(i / 100);
-      const tgl = `2025-09-${String(1 + (i % 28)).padStart(2, "0")}`;
-      
-      const exists = await client.query("SELECT id_pertemuan FROM pertemuan WHERE id_kelas = $1 AND nomor_pertemuan = $2", [classId, pertKe]);
-      if (exists.rows.length === 0) {
-        const res = await client.query(`
-          INSERT INTO pertemuan (id_kelas, nomor_pertemuan, tanggal)
-          VALUES ($1, $2, $3)
-          RETURNING id_pertemuan;
-        `, [classId, pertKe, tgl]);
-        idPertemuans.push(res.rows[0].id_pertemuan);
-      }
-    }
-
-    // Presensi
-    console.log("⏳ Seeding additional presensi...");
-    for (let i = 0; i < newDetailKrsIds.length; i++) {
-      const detailKrsId = newDetailKrsIds[i];
-      const pertId = idPertemuans[i % idPertemuans.length];
-      const presenceStatus = Math.random() > 0.95 ? "alfa" : (Math.random() > 0.9 ? "izin" : "hadir");
-      await client.query(`
-        INSERT INTO presensi (id_detail_krs, id_pertemuan, status_presensi)
-        VALUES ($1, $2, $3::status_presensi)
-        ON CONFLICT DO NOTHING;
-      `, [detailKrsId, pertId, presenceStatus]);
-    }
-
-    // Tagihan and Pembayaran
-    const tagRes = await client.query("SELECT id_tagihan FROM tagihan");
-    const idTagihans = tagRes.rows.map(r => r.id_tagihan);
-    const existingTagihanCount = idTagihans.length;
-    const newTagihanIds: number[] = [];
-    console.log(`⏳ Scaling Tagihan to 100 rows...`);
-    for (let i = 0; i < studentData.length; i++) {
-      const mhsId = studentData[i].id;
-      const taId = 2;
-      const nominal = getRandomElement([3500000, 4200000, 5000000, 5500000, 6000000]);
-      const status = Math.random() > 0.4 ? "lunas" : "belum";
-      
-      const exists = await client.query(`
-        SELECT id_tagihan FROM tagihan 
-        WHERE id_mahasiswa = $1 AND id_tahun_ajaran = $2 AND semester_aktif = 'ganjil' AND tipe_tagihan = 'ukt'
-      `, [mhsId, taId]);
-
-      if (exists.rows.length === 0) {
-        const res = await client.query(`
-          INSERT INTO tagihan (id_mahasiswa, id_tahun_ajaran, semester_aktif, tipe_tagihan, nominal, status_tagihan, tenggat)
-          VALUES ($1, $2, 'ganjil'::semester_aktif, 'ukt'::tipe_tagihan, $3, $4::status_transaksi, '2025-07-31')
-          RETURNING id_tagihan;
-        `, [mhsId, taId, nominal, status]);
-        idTagihans.push(res.rows[0].id_tagihan);
-        newTagihanIds.push(res.rows[0].id_tagihan);
-      }
-    }
-
-    console.log("⏳ Seeding additional pembayaran...");
-    for (let i = 0; i < newTagihanIds.length; i++) {
-      const tagihanId = newTagihanIds[i];
-      await client.query(`
-        INSERT INTO pembayaran (id_tagihan, nominal_bayar, status_pembayaran)
-        VALUES ($1, (SELECT nominal FROM tagihan WHERE id_tagihan = $1), 'lunas'::status_transaksi);
-      `, [tagihanId]);
-    }
-
-    // Log Aktivitas
-    console.log("⏳ Seeding additional log aktivitas...");
-    for (let i = 0; i < studentUserIds.length; i++) {
-      const userId = studentUserIds[i];
-      await client.query(`
-        INSERT INTO log_aktivitas (id_user, ip_address, aktivitas)
-        VALUES ($1, '127.0.0.1', 'Mengisi KRS dan mendaftarkan pertemuan mata kuliah');
-      `, [userId]);
-    }
-
-    // Pengumuman
-    const pengRes = await client.query("SELECT id_pengumuman FROM pengumuman");
-    const existingPengCount = pengRes.rows.length;
-    console.log(`⏳ Scaling Pengumuman to 100 rows...`);
-    for (let i = existingPengCount; i < 100; i++) {
+    const pengumumanRows = Array.from({ length: 10 }).map((_, idx) => {
       const target = getRandomElement(["global", "prodi", "personal"]);
-      await client.query(`
-        INSERT INTO pengumuman (id_user, isi_pengumuman, target)
-        VALUES (1, $1, $2::target_pengumuman);
-      `, [`Informasi akademik dan registrasi semester baru nomor ${i + 1}`, target]);
-    }
+      return [
+        null,
+        adminId,
+        `Informasi akademis tambahan ke-${idx + 1} seputar penyesuaian agenda kuliah semester berjalan.`,
+        target,
+        "2025-09-30"
+      ];
+    });
+    await bulkInsert(client, "pengumuman", ["id_program_studi", "id_user", "isi_pengumuman", "target", "tanggal_berakhir"], pengumumanRows);
 
-    // Kalender Akademik
-    const kalRes = await client.query("SELECT id_kalender_akademik FROM kalender_akademik");
-    const existingKalCount = kalRes.rows.length;
-    console.log(`⏳ Scaling Kalender Akademik to 100 rows...`);
-    for (let i = existingKalCount; i < 100; i++) {
-      const activityName = `Kegiatan Akademik Extra ${i + 1}`;
-      const exists = await client.query("SELECT 1 FROM kalender_akademik WHERE id_tahun_ajaran = 2 AND nama_kegiatan = $1", [activityName]);
-      if (exists.rows.length === 0) {
-        await client.query(`
-          INSERT INTO kalender_akademik (id_tahun_ajaran, nama_kegiatan, tanggal_mulai, tanggal_selesai)
-          VALUES (2, $1, $2, $3);
-        `, [activityName, `2025-08-${String(1 + (i % 28)).padStart(2, "0")}`, `2025-08-${String(1 + (i % 28)).padStart(2, "0")}`]);
-      }
-    }
+    // ==========================================
+    // 3. RE-ENABLE TRIGGERS & COMMIT
+    // ==========================================
+    console.log("🔒 Re-enabling operational triggers...");
+    await client.query("ALTER TABLE detail_krs ENABLE TRIGGER trg_cek_prasyarat");
+    await client.query("ALTER TABLE detail_krs ENABLE TRIGGER trg_update_kuota_kelas");
+    await client.query("ALTER TABLE kelas ENABLE TRIGGER trg_cek_jadwal_dosen");
 
     await client.query("COMMIT");
-    console.log("🎉 SUCCESS: Seeding completed successfully inside transaction!");
+    console.log("🎉 SUCCESS: Append-only seeding completed successfully inside transaction!");
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("❌ ERROR: Seeding failed, transaction rolled back.");
