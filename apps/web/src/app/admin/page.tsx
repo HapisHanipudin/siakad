@@ -34,7 +34,7 @@ export default function AdminPortal() {
       const kData = await kRes.json() as any;
       const dData = await dRes.json() as any;
       setKelasList(kData);
-      setDosenList(dData);
+      setDosenList(Array.isArray(dData) ? dData : dData.data || []);
     } catch (err) {
       console.error("Gagal memuat data admin:", err);
     } finally {
