@@ -32,7 +32,8 @@ export const getMahasiswaHandler: RouteHandler<
         m.id_kurikulum, 
         m.id_kelompok, 
         ps.nama_prodi, 
-        u.email 
+        u.email,
+        format_profil_mahasiswa(m.id_mahasiswa) AS profil_format
       FROM mahasiswa m 
       LEFT JOIN program_studi ps ON m.id_program_studi = ps.id_program_studi 
       LEFT JOIN users u ON m.id_mahasiswa = u.id_mahasiswa

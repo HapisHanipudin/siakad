@@ -130,18 +130,23 @@ export const createKrsHandler: RouteHandler<
       throw new Error(`Akses ditolak: Mahasiswa dengan status '${statusMhs}' tidak diizinkan mengisi KRS.`);
     }
 
-    // B. Cek tagihan belum lunas yang melewati tenggat waktu (Block KRS jika ada tagihan overdue)
+    // B. Cek tagihan belum lunas yang melewati tenggat waktu menggunakan UDF cek_kelayakan_krs
     const overdueRes = await client.query(`
-      SELECT COUNT(*) 
+      SELECT id_tagihan 
       FROM tagihan 
       WHERE id_mahasiswa = $1 
         AND status_tagihan = 'belum' 
         AND tenggat < CURRENT_DATE
     `, [id_mahasiswa]);
     
-    const overdueCount = parseInt(overdueRes.rows[0].count, 10);
-    if (overdueCount > 0) {
-      throw new Error("Akses ditolak: Pengisian KRS diblokir karena Anda memiliki tagihan belum lunas yang telah melewati tenggat waktu.");
+    for (const tagihanRow of overdueRes.rows) {
+      const kelayakanRes = await client.query(`
+        SELECT cek_kelayakan_krs($1) AS layak
+      `, [tagihanRow.id_tagihan]);
+      
+      if (!kelayakanRes.rows[0].layak) {
+        throw new Error("Akses ditolak: Pengisian KRS diblokir karena Anda memiliki tagihan belum lunas yang telah melewati tenggat waktu.");
+      }
     }
 
     await client.query("BEGIN");
