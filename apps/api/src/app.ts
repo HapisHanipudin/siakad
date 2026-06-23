@@ -44,7 +44,7 @@ app.get("/dashboard-stats", async (c) => {
       JOIN tahun_ajaran ta ON k.id_tahun_ajaran = ta.id_tahun_ajaran
       WHERE ta.nama_tahun_ajaran = '2025/2026'
     `);
-    
+
     const aRes = await client.query(`
       SELECT isi_pengumuman, tanggal_dibuat 
       FROM pengumuman 
@@ -78,6 +78,16 @@ const docRoute = createRoute({
         },
       },
     },
+    500: {
+      description: "Failed to generate documentation",
+      content: {
+        "application/json": {
+          schema: z.object({
+            message: z.string(),
+          }),
+        },
+      },
+    },
   },
 });
 
@@ -98,16 +108,21 @@ const referenceRoute = createRoute({
 });
 
 app.openapi(docRoute, (c) => {
-  return c.json(
-    app.getOpenAPI31Document({
+  try {
+    const doc = app.getOpenAPI31Document({
       openapi: "3.1.0",
       info: {
         title: "SiAkad API",
         version: "1.0.0",
       },
-    }),
-    200,
-  );
+    });
+
+    return c.json(doc, 200,
+    );
+  } catch (err: any) {
+    console.error("OpenAPI Doc Generation Error:", err?.stack || err);
+    return c.json({ message: err.message || "Failed to generate documentation" }, 500);
+  }
 });
 
 app.openapi(referenceRoute, (c) => {
