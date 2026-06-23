@@ -37,7 +37,7 @@ app.get("/dashboard-stats", async (c) => {
   const client = createDb(env);
   await client.connect();
   try {
-    const mRes = await client.query("SELECT COUNT(*) FROM mahasiswa");
+    const mRes = await client.query("SELECT COUNT(*) FROM mahasiswa WHERE status_mahasiswa = 'aktif'");
     const dRes = await client.query("SELECT COUNT(*) FROM dosen");
     const kRes = await client.query(`
       SELECT COUNT(*) FROM kelas k
