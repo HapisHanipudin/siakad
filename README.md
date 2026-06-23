@@ -19,6 +19,9 @@ Proyek ini dibuat untuk memenuhi kriteria Tugas Akhir Praktikum Sistem Basis Dat
 Untuk melihat rincian pemenuhan syarat teknis (Trigger, TCL, Stored Procedure, dll) beserta pembagian tugas masing-masing anggota kelompok, silakan merujuk pada dokumen berikut:
 👉 [**Dokumentasi Proyek & Pembagian Tugas**](./DOKUMENTASI_PROYEK.md)
 
+🌐 **Demo Live Website:** [siakad-fe.pages.dev](https://siakad-fe.pages.dev)
+
+
 ---
 
 ## Tech Stack

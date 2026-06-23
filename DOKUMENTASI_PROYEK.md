@@ -1,30 +1,73 @@
 # Dokumentasi Pemenuhan Spesifikasi Proyek SIAKAD
 
-Dokumen ini memuat pemetaan (mapping) antara kriteria tugas akhir Praktikum Sistem Basis Data dengan implementasi pada *codebase* proyek SIAKAD, serta rincian pembagian tugas masing-masing anggota kelompok.
+Dokumen ini memuat pemetaan (mapping) antara kriteria tugas akhir Praktikum Sistem Basis Data dengan implementasi nyata pada *codebase* proyek SIAKAD, tautan ke file SQL raw, backend API, frontend web dashboard, serta rincian pembagian tugas kelompok.
 
-## A. Status Pemenuhan Persyaratan Teknis
-Berikut adalah status implementasi dari spesifikasi minimal yang disyaratkan:
-
-- [x] **Database & Entitas:** Terimplementasi **24 Tabel** (Syarat min. 20 tabel), mencakup Data Master, Transaksional, Referensi, dan Aktor.
-- [x] **Dummy Data:** Terisi lebih dari 150 baris data dummy operasional yang saling berelasi.
-- [x] **Trigger:** Terimplementasi **6 Trigger** (Syarat min. 3), meliputi kalkulasi nilai otomatis, validasi prasyarat matkul, update kuota kelas, dan log audit.
-- [x] **Function (UDF):** Terimplementasi **2 Function** (Syarat min. 2), untuk pemformatan data UI dan validasi kelayakan transaksi secara boolean.
-- [x] **Stored Procedure:** Terimplementasi **4 Procedure** (Syarat min. 3), untuk otomasi pendaftaran KRS, verifikasi pembayaran, dan pengesahan dokumen.
-- [x] **Cursor:** Terimplementasi **1 Cursor** di dalam Stored Procedure untuk iterasi massal konversi nilai akademik mahasiswa.
-- [x] **TCL & Table Locking:** Terimplementasi simulasi `COMMIT`, `ROLLBACK`, dan penguncian data konkuren menggunakan metode `FOR UPDATE` pada skenario rebutan kuota KRS dan validasi pembayaran tagihan.
-- [x] **Aggregate & Reporting:** Terimplementasi **5 Query Laporan** menggunakan fungsi agregasi (`COUNT`, `SUM`, `AVG`, `MAX`, `MIN`) yang divisualisasikan dalam bentuk Web Dashboard Manajerial secara *real-time*.
-- [x] **Backup & Restore:** Terlampir di Bab VI menggunakan command CLI `pg_dump` dan `psql` (Terdokumentasi di laporan Word).
+🌐 **Demo Live Website:** [siakad-fe.pages.dev](https://siakad-fe.pages.dev)
 
 ---
 
-## B. Matriks Pembagian Tugas Kelompok
+## A. Status Pemenuhan Persyaratan Teknis & Tautan Implementasi
+
+Berikut adalah matriks pemetaan kriteria teknis ke file implementasi nyata beserta baris kodenya dalam *codebase*:
+
+| Kriteria Teknis | Status | File SQL Raw & Baris Kode | Implementasi Backend / Frontend / Seeder |
+| :--- | :---: | :--- | :--- |
+| **1. Database Schema & Entitas**<br>(Min. 20 Tabel, Terimplementasi 24 Tabel) |  | [skema_dan_data_akademik_pg.sql#L68-L306](./query/skema_dan_data_akademik_pg.sql#L68-L306) | Didefinisikan dan dieksekusi di database PostgreSQL.<br>Koneksi database runtime: [index.ts](./apps/api/src/db/index.ts) |
+| **2. Relasional Dummy Data**<br>(Min. 150 Baris Data Dummy Berelasi) |  | [skema_dan_data_akademik_pg.sql#L311-L543](./query/skema_dan_data_akademik_pg.sql#L311-L543) | Mass data generator dinamis (600+ Mahasiswa, Kelas, Pembayaran, Log):<br>[seed_large.ts](./apps/api/src/scripts/seed_large.ts) |
+| **3. Trigger Otomatisasi**<br>(Min. 3, Terimplementasi 6 Trigger) |  | • T-01 (Kalkulasi Nilai): [L7-L33](./query/triggers_final.sql#L7-L33)<br>• T-02 (Cek Prasyarat): [L42-L101](./query/triggers_final.sql#L42-L101)<br>• T-03 (Kuota KRS): [L110-L139](./query/triggers_final.sql#L110-L139)<br>• T-04 (Kuota Ruangan): [L148-L171](./query/triggers_final.sql#L148-L171)<br>• T-05 (Update Tagihan): [L180-L217](./query/triggers_final.sql#L180-L217)<br>• T-06 (Bentrok Jadwal Dosen): [L226-L258](./query/triggers_final.sql#L226-L258) | **Backend Trigger Integration:**<br>• T-02 & T-03 berjalan otomatis pada [krs.handlers.ts#L146-L149](./apps/api/src/modules/krs/krs.handlers.ts#L146-L149) saat insert detail_krs.<br>• T-05 berjalan otomatis pada [pembayaran.handlers.ts#L76-L81](./apps/api/src/modules/pembayaran/pembayaran.handlers.ts#L76-L81) saat insert pembayaran.<br><br>**Frontend & Demo Web:**<br>• Live Demo Page KRS: [siakad-fe.pages.dev/krs](https://siakad-fe.pages.dev/krs) (Source: [page.tsx](./apps/web/src/app/krs/page.tsx))<br>• Live Demo Portal Mhs: [siakad-fe.pages.dev/mahasiswa](https://siakad-fe.pages.dev/mahasiswa) (Source: [page.tsx](./apps/web/src/app/mahasiswa/page.tsx)) |
+| **4. User Defined Function (UDF)**<br>(Min. 2 Function) |  | • UDF-01 (Format Profil): [L12-L26](./query/task04_procedure_udf_cursor.sql#L12-L26)<br>• UDF-02 (Cek Kelayakan): [L30-L47](./query/task04_procedure_udf_cursor.sql#L30-L47) | **Backend UDF Calls:**<br>• UDF dipanggil untuk pelabelan UI profil & pengecekan kelayakan transaksi akademik.<br><br>**Frontend & Demo Web:**<br>• Live Demo Portal Mhs: [siakad-fe.pages.dev/mahasiswa](https://siakad-fe.pages.dev/mahasiswa) (Source: [page.tsx](./apps/web/src/app/mahasiswa/page.tsx)) |
+| **5. Stored Procedure**<br>(Min. 3, Terimplementasi 4 Procedure) |  | • SP-01 (Tambah Kelas KRS): [L55-L62](./query/task04_procedure_udf_cursor.sql#L55-L62)<br>• SP-02 (Proses Pembayaran): [L66-L77](./query/task04_procedure_udf_cursor.sql#L66-L77)<br>• SP-03 (Sahkan KRS): [L81-L89](./query/task04_procedure_udf_cursor.sql#L81-L89)<br>• SP-04 (Konversi Nilai): [L97-L135](./query/task04_procedure_udf_cursor.sql#L97-L135) | **Backend Procedure Execution:**<br>• SP-01 & SP-03 dipanggil lewat `CALL` SQL query di [krs.handlers.ts#L146-L154](./apps/api/src/modules/krs/krs.handlers.ts#L146-L154).<br>• SP-02 dipanggil saat pemrosesan verifikasi pembayaran UKT.<br><br>**Frontend & Demo Web:**<br>• Live Demo Page KRS: [siakad-fe.pages.dev/krs](https://siakad-fe.pages.dev/krs) (Source: [page.tsx](./apps/web/src/app/krs/page.tsx))<br>• Live Demo Portal Mhs: [siakad-fe.pages.dev/mahasiswa](https://siakad-fe.pages.dev/mahasiswa) (Source: [page.tsx](./apps/web/src/app/mahasiswa/page.tsx)) |
+| **6. Cursor**<br>(Min. 1 Cursor) |  | [task04_procedure_udf_cursor.sql#L102-L133](./query/task04_procedure_udf_cursor.sql#L102-L133) | **Database Processing:**<br>• Dideklarasikan dan dibuka (`OPEN`, `FETCH`, `CLOSE`) di dalam stored procedure `sp_konversi_nilai_huruf` untuk penyesuaian huruf mutu mahasiswa secara massal di memori database.<br><br>**Frontend & Demo Web:**<br>• Live Demo Portal Mhs (KHS & Transkrip): [siakad-fe.pages.dev/mahasiswa](https://siakad-fe.pages.dev/mahasiswa) (Source: [page.tsx](./apps/web/src/app/mahasiswa/page.tsx)) |
+| **7. TCL & Concurrency Control**<br>(Commit, Rollback & Locking) |  | • Skenario 1 (KRS & Locking): [L8-L30](./query/tcl_final.sql#L8-L30)<br>• Skenario 2 (Input Nilai): [L43-L87](./query/tcl_final.sql#L43-L87)<br>• Skenario 3 (Bayar UKT & Locking): [L101-L137](./query/tcl_final.sql#L101-L137)<br>• Skenario 4 (Buat Kelas): [L151-L183](./query/tcl_final.sql#L151-L183)<br>• Skenario 5 (Batal KRS): [L196-L234](./query/tcl_final.sql#L196-L234)<br>• Skenario 6 (Maba): [L246-L315](./query/tcl_final.sql#L246-L315) | **Backend Concurrency & Transaction:**<br>• Skenario 3 Locking (`FOR UPDATE`) diimplementasikan dalam API transaksi pembayaran di [pembayaran.handlers.ts#L57-L72](./apps/api/src/modules/pembayaran/pembayaran.handlers.ts#L57-L72) diapit blok `BEGIN` - `COMMIT` / `ROLLBACK`. (Aman dari race condition konkuren).<br>• Blok transaksi pengisian KRS diapit secara terproteksi di [krs.handlers.ts#L104-L174](./apps/api/src/modules/krs/krs.handlers.ts#L104-L174).<br><br>**Frontend & Demo Web:**<br>• Halaman KRS Interaktif: [siakad-fe.pages.dev/krs](https://siakad-fe.pages.dev/krs) (Source: [page.tsx](./apps/web/src/app/krs/page.tsx))<br>• Portal Mahasiswa (Pembayaran tagihan): [siakad-fe.pages.dev/mahasiswa](https://siakad-fe.pages.dev/mahasiswa) (Source: [page.tsx](./apps/web/src/app/mahasiswa/page.tsx)) |
+| **8. Aggregate & Reporting**<br>(5 Query Laporan Utama) |  | • Laporan 1 (Status): [L15-L32](./query/task05_reporting.sql#L15-L32)<br>• Laporan 2 (UKT): [L41-L55](./query/task05_reporting.sql#L41-L55)<br>• Laporan 3 (Rata Nilai): [L64-L76](./query/task05_reporting.sql#L64-L76)<br>• Laporan 4 (Performers): [L85-L112](./query/task05_reporting.sql#L85-L112)<br>• Laporan 5 (Dosen): [L121-L137](./query/task05_reporting.sql#L121-L137) | **API Endpoints:**<br>• Routes: [laporan.routes.ts](./apps/api/src/modules/laporan/laporan.routes.ts)<br>• Handlers: [laporan.handlers.ts](./apps/api/src/modules/laporan/laporan.handlers.ts)<br><br>**Frontend & Demo Web:**<br>• Admin Laporan Dashboard: [siakad-fe.pages.dev/admin/laporan](https://siakad-fe.pages.dev/admin/laporan) (Source: [page.tsx](./apps/web/src/app/admin/laporan/page.tsx)) |
+
+---
+
+## B. Alur Panduan Uji Coba Live Demo
+
+Dosen penguji atau pengguna dapat memverifikasi seluruh fungsi basis data (Trigger, SP, UDF, TCL, Locking) secara langsung melalui alur simulasi live demo berikut:
+
+### 1. Simulasi Pengisian & Pengesahan KRS (Skenario 1, SP-01, SP-03, T-02, T-03)
+1.  Buka halaman **[siakad-fe.pages.dev/krs](https://siakad-fe.pages.dev/krs)**.
+2.  Pilih salah satu Mahasiswa (contoh: *Dimitri Putranto*).
+3.  Pilih kelas mata kuliah yang tersedia di daftar kelas prodi.
+    *   *Uji Coba Validasi Trigger Prasyarat (T-02):* Jika mencoba mengambil kelas tingkat lanjut (misal *Struktur Data*) tanpa mencentang kelas prasyaratnya (*Dasar Pemrograman*), sistem akan secara otomatis memblokir pengisian dan memunculkan notifikasi error prasyarat dari trigger.
+4.  Centang mata kuliah dasar perkuliahan lalu klik **"Simpan & Sahkan KRS"**.
+5.  Database akan membuka transaksi, menjalankan Stored Procedure `sp_tambah_kelas_krs` & `sp_sahkan_krs`, mengurangi kuota secara atomik (T-03), lalu melakukan `COMMIT`.
+
+### 2. Simulasi Input Nilai Dosen Wali (Skenario 2, T-01)
+1.  Buka halaman **[siakad-fe.pages.dev/dosen](https://siakad-fe.pages.dev/dosen)**.
+2.  Pilih salah satu kelas aktif yang Anda ajarkan (misal *Sistem Basis Data*).
+3.  Masukkan nilai Tugas, UTS, dan UAS untuk mahasiswa terdaftar, lalu klik **"Simpan Nilai"**.
+4.  Trigger `trg_hitung_nilai` (T-01) di database PostgreSQL akan otomatis menghitung rata-rata nilai akhir angka dan mengonversinya menjadi huruf mutu (`A`/`B`/`C`/`D`/`E`) secara realtime sebelum data tersimpan.
+
+### 3. Simulasi Transaksi Pembayaran Tagihan UKT (Skenario 3, T-05, Row Locking)
+1.  Buka halaman **[siakad-fe.pages.dev/mahasiswa](https://siakad-fe.pages.dev/mahasiswa)**.
+2.  Pilih Mahasiswa yang memiliki tagihan UKT aktif (contoh: *Rizky Ramadhan*).
+3.  Pada panel tagihan akademik, klik tombol **"Bayar Sekarang"**.
+4.  Backend API membuka transaksi basis data dan menerapkan **Row-level locking (`SELECT ... FOR UPDATE`)** pada baris tagihan terkait untuk mengamankan data dari pembayaran ganda konkuren.
+5.  Setelah pembayaran diverifikasi, Trigger `trg_update_status_tagihan` (T-05) di database otomatis memperbarui status tagihan mahasiswa menjadi `'lunas'`.
+
+### 4. Simulasi Konfigurasi Ruang & Jadwal Admin (Skenario 4, T-04, T-06)
+1.  Buka halaman **[siakad-fe.pages.dev/admin](https://siakad-fe.pages.dev/admin)**.
+2.  Isi form pembuatan kelas baru dengan menentukan Dosen pengajar, kapasitas kuota kelas, serta Ruangan & Hari/Jam.
+    *   *Uji Coba Validasi Jadwal Tabrakan (T-06):* Cobalah jadwalkan dosen yang sama untuk mengajar kelas lain di hari dan jam yang sama. Trigger `trg_cek_jadwal_dosen` otomatis menangkap bentrokan tersebut dan membatalkan transaksi pembuatan kelas.
+    *   *Uji Coba Validasi Ruangan (T-04):* Cobalah set kuota kelas melebihi kapasitas fisik ruangan terpilih. Trigger `trg_validasi_kuota_ruangan` akan langsung melempar exception error.
+
+### 5. Laporan Visualisasi Agregasi Eksekutif (Kriteria 8)
+1.  Buka dashboard pelaporan **[siakad-fe.pages.dev/admin/laporan](https://siakad-fe.pages.dev/admin/laporan)**.
+2.  Anda dapat mengamati 5 buah widget visualisasi interaktif (Statistik Status Mahasiswa, Pendapatan UKT Kampus, Tingkat Kesulitan Matkul, Top/Bottom Performers Kelas, dan Beban SKS Mengajar Dosen) yang ditarik secara realtime menggunakan *Complex Aggregate Queries* dari database.
+
+---
+
+## C. Matriks Pembagian Tugas Kelompok
 
 Proses pengerjaan proyek dibagi secara merata untuk memastikan setiap anggota memiliki andil dalam perancangan *database*, penulisan *query* tingkat lanjut, hingga penyusunan laporan akhir.
 
 | Peran & Nama Anggota | Deskripsi Kontribusi Teknis & Penyusunan Laporan |
 | :--- | :--- |
 | **Akbar**<br>*(System Analyst & DB Architect)* | **Fokus:** Perancangan Logika Bisnis & Struktur Data.<br>• Merumuskan aturan bisnis (business rules) SIAKAD dan batasan entitas aktor.<br>• Merancang Entity Relationship Diagram (ERD) dan melakukan normalisasi tabel (1NF hingga 3NF).<br>• **Laporan:** Bertanggung jawab penuh menyusun Bab I, Bab II (Proses Bisnis), Bab III (ERD & Data Dictionary), dan Bab VIII. |
-| **Dimitri**<br>*(Core Database Administrator)* | **Fokus:** Eksekusi DDL, DML, dan Keamanan Data Dasar.<br>• Mengonversi struktur rancangan DBML menjadi eksekusi `CREATE TABLE` (DDL) dengan constraints ketat di PostgreSQL.<br>• Melakukan data seeding ratusan baris dummy data (DML).<br>• Melakukan simulasi dan eksekusi Backup & Restore Database via CLI.<br>• **Laporan:** Bertanggung jawab menyusun Bab IV (DDL & DML) dan Bab VI (Backup & Restore). |
-| **Given**<br>*(SQL Developer A - Otomatisasi)* | **Fokus:** Keamanan Transaksi dan *Event-Driven Actions*.<br>• Membuat dan melakukan *testing* pada 6 buah `TRIGGER` untuk otomasi sistem.<br>• Merancang skenario demonstrasi Transaction Control Language (TCL) menggunakan `COMMIT` dan `ROLLBACK`.<br>• Mengimplementasikan skenario penguncian data (`Table Locking` dengan `FOR UPDATE`).<br>• **Laporan:** Bertanggung jawab menyusun Bab V (Bagian implementasi Trigger dan TCL). |
-| **Ahya**<br>*(SQL Developer B - Pemrosesan)* | **Fokus:** *Business Logic Processing* berbasis Database.<br>• Menulis 4 *Stored Procedure* untuk memproses logika transaksi akademik.<br>• Membangun 2 *User Defined Function* (UDF).<br>• Mengimplementasikan fitur *Cursor* untuk *looping* pemrosesan data massal di dalam memori database.<br>• **Laporan:** Bertanggung jawab menyusun Bab V (Bagian implementasi Function, Procedure, dan Cursor). |
-| **Hafizh**<br>*(Data Analyst & Fullstack Integrator)* | **Fokus:** Pelaporan Manajerial & Integrasi Web Dashboard.<br>• Meracik 5 *Query Aggregate* kompleks (SUM, AVG, COUNT, MAX, MIN) untuk pelaporan manajerial.<br>• Membangun integrasi Backend API dan menyajikan hasil *query* ke dalam antarmuka Frontend Web Dashboard (Next.js & Tailwind CSS).<br>• **Laporan:** Bertanggung jawab menyusun Bab VII (Reporting & Dashboard) serta melakukan kompilasi hasil akhir *source code*. |
+| **Dimitri**<br>*(Core Database Administrator)* | **Fokus:** Eksekusi DDL, DML, dan Keamanan Data Dasar.<br>• Mengonversi struktur rancangan DBML menjadi eksekusi `CREATE TABLE` (DDL) dengan constraints ketat di PostgreSQL: [skema_dan_data_akademik_pg.sql](./query/skema_dan_data_akademik_pg.sql).<br>• Melakukan data seeding ratusan baris dummy data (DML).<br>• Melakukan simulasi dan eksekusi Backup & Restore Database via CLI.<br>• **Laporan:** Bertanggung jawab menyusun Bab IV (DDL & DML) dan Bab VI (Backup & Restore). |
+| **Given**<br>*(SQL Developer A - Otomatisasi)* | **Fokus:** Keamanan Transaksi dan *Event-Driven Actions*.<br>• Membuat dan melakukan *testing* pada 6 buah `TRIGGER` untuk otomasi sistem: [triggers_final.sql](./query/triggers_final.sql).<br>• Merancang skenario demonstrasi Transaction Control Language (TCL) menggunakan `COMMIT` dan `ROLLBACK`.<br>• Mengimplementasikan skenario penguncian data (`Table Locking` dengan `FOR UPDATE`): [tcl_final.sql](./query/tcl_final.sql).<br>• **Laporan:** Bertanggung jawab menyusun Bab V (Bagian implementasi Trigger dan TCL). |
+| **Ahya**<br>*(SQL Developer B - Pemrosesan)* | **Fokus:** *Business Logic Processing* berbasis Database.<br>• Menulis 4 *Stored Procedure* untuk memproses logika transaksi akademik.<br>• Membangun 2 *User Defined Function* (UDF).<br>• Mengimplementasikan fitur *Cursor* untuk *looping* pemrosesan data massal di dalam memori database: [task04_procedure_udf_cursor.sql](./query/task04_procedure_udf_cursor.sql).<br>• **Laporan:** Bertanggung jawab menyusun Bab V (Bagian implementasi Function, Procedure, dan Cursor). |
+| **Hafizh**<br>*(Data Analyst & Fullstack Integrator)* | **Fokus:** Pelaporan Manajerial & Integrasi Web Dashboard.<br>• Meracik 5 *Query Aggregate* kompleks (SUM, AVG, COUNT, MAX, MIN) untuk pelaporan manajerial: [task05_reporting.sql](./query/task05_reporting.sql).<br>• Membangun integrasi Backend API ([laporan.routes.ts](./apps/api/src/modules/laporan/laporan.routes.ts) & [laporan.handlers.ts](./apps/api/src/modules/laporan/laporan.handlers.ts)) dan menyajikan hasil *query* ke dalam antarmuka Frontend Web Dashboard ([page.tsx](./apps/web/src/app/admin/laporan/page.tsx)).<br>• Membangun generator large seeder append-only: [seed_large.ts](./apps/api/src/scripts/seed_large.ts).<br>• **Laporan:** Bertanggung jawab menyusun Bab VII (Reporting & Dashboard) serta melakukan kompilasi hasil akhir *source code*. |
