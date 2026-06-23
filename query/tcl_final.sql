@@ -7,6 +7,10 @@
 
 BEGIN;
 
+    -- Lock the targeted kelas rows to secure their kuota from concurrent bookings
+    -- FOR UPDATE ensures no other transaction can modify these classes' quota until this transaction commits.
+    SELECT id_kelas, kuota FROM kelas WHERE id_kelas IN (5, 6) FOR UPDATE;
+
     -- Tambahkan mata kuliah ke detail KRS Citra (id_krs=5)
     -- Trigger T-02 otomatis cek prasyarat
     -- Trigger T-03 otomatis kurangi kuota kelas
@@ -98,16 +102,19 @@ BEGIN;
 
     SAVEPOINT sp_sebelum_bayar;
 
-    -- Cek status tagihan sebelum membayar
+    -- Cek status tagihan sebelum membayar dengan mengunci row tersebut
     DO $$
     DECLARE
         v_status  status_transaksi;
         v_nominal DECIMAL(10,2);
     BEGIN
+        -- Lock the targeted tagihan row using FOR UPDATE to ensure its status/amount 
+        -- is not modified concurrently by another transaction until we commit.
         SELECT status_tagihan, nominal
         INTO v_status, v_nominal
         FROM tagihan
-        WHERE id_tagihan = 4;
+        WHERE id_tagihan = 4
+        FOR UPDATE;
 
         IF v_status = 'lunas'::status_transaksi THEN
             RAISE EXCEPTION 'Tagihan id=4 sudah berstatus lunas, pembayaran ditolak.';
