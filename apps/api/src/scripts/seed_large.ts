@@ -76,6 +76,34 @@ function calculateGrade(tugas: number, uts: number, uas: number) {
   return { finalScore: Number(finalScore.toFixed(2)), letter };
 }
 
+// UPNVJ NIM Helper: [Year][10][Faculty][Degree][Prodi][Sequence]
+function generateNIM(
+  angkatan: number,
+  idFakultas: number,
+  jenjang: string,
+  idProdi: number,
+  sequence: number
+): string {
+  const year = String(angkatan % 100).padStart(2, "0");
+  const constCode = "10";
+  const facultyDigit = String(idFakultas % 10);
+  
+  let codeJenjang = "1";
+  if (jenjang === "D3") codeJenjang = "0";
+  else if (jenjang === "S2") codeJenjang = "2";
+  else if (jenjang === "S3") codeJenjang = "3";
+
+  const prodiDigit = String(idProdi % 10);
+  const seqStr = String(sequence).padStart(3, "0");
+
+  return `${year}${constCode}${facultyDigit}${codeJenjang}${prodiDigit}${seqStr}`;
+}
+
+// NIDN Helper: 04 + [Year] + [Sequence]
+function generateNIDN(year: number, sequence: number): string {
+  return `04${year}${String(sequence).padStart(4, "0")}`;
+}
+
 // Optimized asynchronous bulk insert helper that automatically chunk-handles parameter limits (max 65,535 in pg)
 async function bulkInsert(
   client: pg.Client,
@@ -130,11 +158,23 @@ async function seed() {
     await client.query("BEGIN");
 
     // ==========================================
+    // 0. TARGETED CLEANUP (IDEMPOTENT SEEDING)
+    // ==========================================
+    console.log("🧹 Executing targeted cleanup of previous seeder runs...");
+    await client.query("DELETE FROM users WHERE email LIKE 'gen.%'");
+    await client.query("DELETE FROM mahasiswa WHERE nim LIKE '99%' OR (nim ~ '^[0-9]+$' AND CAST(RIGHT(nim, 3) AS INTEGER) >= 500)");
+    await client.query("DELETE FROM kelas WHERE kode_kelas LIKE 'G-%' OR kode_kelas LIKE 'GEN-%'");
+    await client.query("DELETE FROM kelompok WHERE kode_kelompok LIKE 'KLP-R-%' OR kode_kelompok LIKE 'KLP-GEN-%' OR kode_kelompok LIKE 'KLP-%'");
+    await client.query("DELETE FROM rombel WHERE nama_rombel LIKE 'R-%' OR nama_rombel LIKE 'GEN-%'");
+    await client.query("DELETE FROM dosen WHERE nidn LIKE '99%' OR nidn LIKE '042025%'");
+    await client.query("DELETE FROM pengumuman WHERE isi_pengumuman LIKE 'Informasi akademis tambahan ke-%'");
+
+    // ==========================================
     // 1. FETCH EXISTING MASTER DATA (NO TRUNCATE)
     // ==========================================
     console.log("🔍 Fetching existing static master data arrays...");
     const faks = (await client.query("SELECT id_fakultas FROM fakultas")).rows;
-    const prodis = (await client.query("SELECT id_program_studi FROM program_studi")).rows;
+    const prodis = (await client.query("SELECT id_program_studi, id_fakultas, jenjang FROM program_studi")).rows;
     const gedungs = (await client.query("SELECT id_gedung FROM gedung")).rows;
     const ruangans = (await client.query("SELECT id_ruangan, kapasitas FROM ruangan")).rows;
     const mks = (await client.query("SELECT id_mata_kuliah, sks FROM mata_kuliah")).rows;
@@ -179,9 +219,11 @@ async function seed() {
 
     for (let i = 0; i < numDosen; i++) {
       let nidn = "";
+      let sequence = 501 + i;
+      let attempt = 0;
       do {
-        // Prefix with 99 to prevent collisions
-        nidn = `99${Math.floor(100000 + Math.random() * 900000)}`;
+        nidn = generateNIDN(2025, sequence + attempt);
+        attempt++;
       } while (existingNidns.has(nidn));
       existingNidns.add(nidn);
       const randomFak = getRandomElement(faks).id_fakultas;
@@ -234,14 +276,17 @@ async function seed() {
       const rom = rombels.find(r => r.id_program_studi === p.id_program_studi) || rombels[0];
       const kel = kelompoks.find(k => k.id_rombel === rom.id_rombel) || kelompoks[0];
 
-      for (let s = 0; s < studentCount; s++) {
-        let nim = "";
+      const prodiInfo = prodis.find(pr => pr.id_program_studi === p.id_program_studi);
+      const idFak = prodiInfo ? prodiInfo.id_fakultas : 1;
+      const jenjangMhs = prodiInfo ? prodiInfo.jenjang : "S1";
+
+      for (let s = 501; s <= 500 + studentCount; s++) {
+        let nim = generateNIM(2025, idFak, jenjangMhs, p.id_program_studi, s);
         let attempts = 0;
-        do {
-          // Prefix with 99 to prevent collisions
-          nim = `9925105${String(p.id_program_studi).padStart(2, "0")}${String(s + 1 + attempts).padStart(3, "0")}`;
+        while (existingNims.has(nim)) {
           attempts++;
-        } while (existingNims.has(nim));
+          nim = generateNIM(2025, idFak, jenjangMhs, p.id_program_studi, s + attempts);
+        }
         existingNims.add(nim);
         const nama = getRandomName();
         const status = getWeightedStatus();
