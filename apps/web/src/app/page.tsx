@@ -18,6 +18,7 @@ type Stats = {
 export default function Home() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [totalKelasReal, setTotalKelasReal] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -25,6 +26,13 @@ export default function Home() {
         const res = await fetch(`${API_URL}/dashboard-stats`);
         const data = await res.json() as Stats;
         setStats(data);
+
+        // Fetch real total active classes count for year 2025/2026
+        const kCountRes = await fetch(`${API_URL}/kelas/count`);
+        if (kCountRes.ok) {
+          const kData = await kCountRes.json() as { totalKelas: number };
+          setTotalKelasReal(kData.totalKelas);
+        }
       } catch (err) {
         console.error("Gagal mengambil data statistik:", err);
       } finally {
@@ -80,7 +88,7 @@ export default function Home() {
               <span className="p-2 bg-amber-50 text-amber-600 rounded-xl">📝</span>
             </div>
             <p className="text-3xl font-extrabold text-slate-800">
-              {loading ? "..." : stats?.totalKelas}
+              {loading ? "..." : (totalKelasReal !== null ? totalKelasReal : stats?.totalKelas)}
             </p>
             <p className="text-xs text-indigo-600 font-medium mt-1">Kelas perkuliahan aktif</p>
           </div>

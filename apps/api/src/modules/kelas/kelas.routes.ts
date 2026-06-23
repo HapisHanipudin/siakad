@@ -88,3 +88,22 @@ export const createKelasRoute = createRoute({
     },
   },
 });
+
+export const getKelasCountRoute = createRoute({
+  method: "get",
+  path: "/kelas/count",
+  tags: ["Kelas"],
+  summary: "Dapatkan jumlah total kelas perkuliahan aktif",
+  responses: {
+    200: {
+      description: "Jumlah total kelas perkuliahan aktif",
+      content: {
+        "application/json": {
+          schema: z.object({
+            totalKelas: z.number(),
+          }),
+        },
+      },
+    },
+  },
+});

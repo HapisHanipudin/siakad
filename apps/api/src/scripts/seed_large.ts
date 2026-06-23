@@ -179,7 +179,7 @@ async function seed() {
     const ruangans = (await client.query("SELECT id_ruangan, kapasitas FROM ruangan")).rows;
     const mks = (await client.query("SELECT id_mata_kuliah, sks FROM mata_kuliah")).rows;
     const kurikulums = (await client.query("SELECT id_kurikulum, id_program_studi FROM kurikulum")).rows;
-    const tas = (await client.query("SELECT id_tahun_ajaran FROM tahun_ajaran")).rows;
+    const tas = (await client.query("SELECT id_tahun_ajaran, nama_tahun_ajaran FROM tahun_ajaran")).rows;
     const kurikulumMks = (await client.query("SELECT id_kurikulum, id_mata_kuliah, semester, tipe_mata_kuliah FROM kurikulum_mata_kuliah")).rows;
     const kalenders = (await client.query("SELECT id_kalender_akademik FROM kalender_akademik")).rows;
 
@@ -328,7 +328,9 @@ async function seed() {
     const lecturerSchedule = new Map<number, Set<string>>();
     let classCounter = 1;
 
-    const randomTa = tas[0].id_tahun_ajaran;
+    // Use the active/current academic year '2025/2026' (which is the second row, tas[1])
+    const activeTaRow = tas.find(t => t.nama_tahun_ajaran === "2025/2026") || tas[1] || tas[0];
+    const randomTa = activeTaRow.id_tahun_ajaran;
 
     prodis.forEach(p => {
       const kur = kurikulums.find(k => k.id_program_studi === p.id_program_studi);

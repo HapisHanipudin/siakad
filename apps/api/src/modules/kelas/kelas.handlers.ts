@@ -2,7 +2,7 @@ import type { RouteHandler } from "@hono/zod-openapi";
 import { createDb } from "../../db";
 import { getValidatedEnv } from "../../env";
 import type { AppEnv } from "../../factory";
-import { getKelasRoute, createKelasRoute } from "./kelas.routes";
+import { getKelasRoute, createKelasRoute, getKelasCountRoute } from "./kelas.routes";
 
 export const getKelasHandler: RouteHandler<
   typeof getKelasRoute,
@@ -106,6 +106,28 @@ export const createKelasHandler: RouteHandler<
     return c.json({
       message: error.message || "Gagal membuat kelas baru",
     }, 400);
+  } finally {
+    await client.end();
+  }
+};
+
+export const getKelasCountHandler: RouteHandler<
+  typeof getKelasCountRoute,
+  AppEnv
+> = async (c) => {
+  const env = getValidatedEnv(c.env);
+  const client = createDb(env);
+
+  await client.connect();
+  try {
+    const kRes = await client.query(`
+      SELECT COUNT(*) FROM kelas k
+      JOIN tahun_ajaran ta ON k.id_tahun_ajaran = ta.id_tahun_ajaran
+      WHERE ta.nama_tahun_ajaran = '2025/2026'
+    `);
+    return c.json({
+      totalKelas: parseInt(kRes.rows[0].count, 10),
+    }, 200);
   } finally {
     await client.end();
   }

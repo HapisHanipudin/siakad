@@ -39,7 +39,11 @@ app.get("/dashboard-stats", async (c) => {
   try {
     const mRes = await client.query("SELECT COUNT(*) FROM mahasiswa");
     const dRes = await client.query("SELECT COUNT(*) FROM dosen");
-    const kRes = await client.query("SELECT COUNT(*) FROM kelas");
+    const kRes = await client.query(`
+      SELECT COUNT(*) FROM kelas k
+      JOIN tahun_ajaran ta ON k.id_tahun_ajaran = ta.id_tahun_ajaran
+      WHERE ta.nama_tahun_ajaran = '2025/2026'
+    `);
     
     const aRes = await client.query(`
       SELECT isi_pengumuman, tanggal_dibuat 
