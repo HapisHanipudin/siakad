@@ -114,6 +114,36 @@ export const createKrsHandler: RouteHandler<
 
   await client.connect();
   try {
+    // A. Cek status mahasiswa (Cuti / Drop Out dibatasi pengisian KRS)
+    const mhsRes = await client.query(`
+      SELECT status_mahasiswa 
+      FROM mahasiswa 
+      WHERE id_mahasiswa = $1
+    `, [id_mahasiswa]);
+    
+    if (mhsRes.rows.length === 0) {
+      throw new Error("Mahasiswa tidak ditemukan.");
+    }
+    
+    const statusMhs = mhsRes.rows[0].status_mahasiswa;
+    if (statusMhs === 'cuti' || statusMhs === 'drop_out') {
+      throw new Error(`Akses ditolak: Mahasiswa dengan status '${statusMhs}' tidak diizinkan mengisi KRS.`);
+    }
+
+    // B. Cek tagihan belum lunas yang melewati tenggat waktu (Block KRS jika ada tagihan overdue)
+    const overdueRes = await client.query(`
+      SELECT COUNT(*) 
+      FROM tagihan 
+      WHERE id_mahasiswa = $1 
+        AND status_tagihan = 'belum' 
+        AND tenggat < CURRENT_DATE
+    `, [id_mahasiswa]);
+    
+    const overdueCount = parseInt(overdueRes.rows[0].count, 10);
+    if (overdueCount > 0) {
+      throw new Error("Akses ditolak: Pengisian KRS diblokir karena Anda memiliki tagihan belum lunas yang telah melewati tenggat waktu.");
+    }
+
     await client.query("BEGIN");
 
     // 1. Cari atau buat header KRS
