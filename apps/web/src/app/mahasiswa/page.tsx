@@ -12,6 +12,8 @@ export default function MahasiswaPortal() {
   const [selectedMhs, setSelectedMhs] = useState<Mahasiswa | null>(null);
   const [tagihan, setTagihan] = useState<Tagihan[]>([]);
   const [tagihanLoading, setTagihanLoading] = useState(false);
+  const [academicDetails, setAcademicDetails] = useState<any[]>([]);
+  const [academicLoading, setAcademicLoading] = useState(false);
 
   // Pagination states
   const [page, setPage] = useState(1);
@@ -88,9 +90,28 @@ export default function MahasiswaPortal() {
     }
   };
 
+  const fetchAcademicProgress = async (id_mahasiswa: number) => {
+    setAcademicLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/krs/${id_mahasiswa}`);
+      if (res.ok) {
+        const data = await res.json() as any;
+        setAcademicDetails(data.detail || []);
+      } else {
+        setAcademicDetails([]);
+      }
+    } catch (err) {
+      console.error("Gagal memuat progress akademik:", err);
+      setAcademicDetails([]);
+    } finally {
+      setAcademicLoading(false);
+    }
+  };
+
   const handleSelectMhs = (mhs: Mahasiswa) => {
     setSelectedMhs(mhs);
     fetchTagihan(mhs.id_mahasiswa);
+    fetchAcademicProgress(mhs.id_mahasiswa);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -257,53 +278,153 @@ export default function MahasiswaPortal() {
           <div className="lg:col-span-2 space-y-8">
             {/* Tagihan & Pembayaran (Skenario 3) */}
             {selectedMhs && (
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <h2 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
-                  <span>💰</span> Status Keuangan: {selectedMhs.nama_mahasiswa}
-                </h2>
-                <p className="text-xs text-slate-400 mb-6 font-mono">NIM: {selectedMhs.nim}</p>
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <h2 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <span>💰</span> Status Keuangan: {selectedMhs.nama_mahasiswa}
+                  </h2>
+                  <p className="text-xs text-slate-400 mb-6 font-mono">NIM: {selectedMhs.nim}</p>
 
-                {tagihanLoading ? (
-                  <p className="text-sm text-slate-400">Memuat info tagihan...</p>
-                ) : tagihan.length === 0 ? (
-                  <p className="text-sm text-slate-500">Tidak ada tagihan aktif untuk mahasiswa ini.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {tagihan.map((t) => (
-                      <div
-                        key={t.id_tagihan}
-                        className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-                      >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase">
-                              {t.tipe_tagihan}
-                            </span>
-                            <span className="text-xs text-slate-400">Semester {t.semester_aktif} ({t.nama_tahun_ajaran || "2025/2026"})</span>
+                  {tagihanLoading ? (
+                    <p className="text-sm text-slate-400">Memuat info tagihan...</p>
+                  ) : tagihan.length === 0 ? (
+                    <p className="text-sm text-slate-500">Tidak ada tagihan aktif untuk mahasiswa ini.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {tagihan.map((t) => (
+                        <div
+                          key={t.id_tagihan}
+                          className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 uppercase">
+                                {t.tipe_tagihan}
+                              </span>
+                              <span className="text-xs text-slate-400">Semester {t.semester_aktif} ({t.nama_tahun_ajaran || "2025/2026"})</span>
+                            </div>
+                            <p className="text-lg font-extrabold text-slate-800 mt-2">
+                              Rp {Number(t.nominal || 0).toLocaleString("id-ID")}
+                            </p>
+                            <p className="text-xs text-slate-400 mt-1">Tenggat Pembayaran: {t.tenggat ? new Date(t.tenggat).toLocaleDateString("id-ID") : "-"}</p>
                           </div>
-                          <p className="text-lg font-extrabold text-slate-800 mt-2">
-                            Rp {Number(t.nominal || 0).toLocaleString("id-ID")}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-1">Tenggat Pembayaran: {t.tenggat ? new Date(t.tenggat).toLocaleDateString("id-ID") : "-"}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className={`px-3 py-1 text-xs font-bold rounded-full ${t.status_tagihan === 'lunas' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
-                            {t.status_tagihan === 'lunas' ? '✅ Lunas' : '❌ Belum Bayar'}
-                          </span>
+                          <div className="flex items-center gap-3">
+                            <span className={`px-3 py-1 text-xs font-bold rounded-full ${t.status_tagihan === 'lunas' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                              {t.status_tagihan === 'lunas' ? '✅ Lunas' : '❌ Belum Bayar'}
+                            </span>
 
-                          {t.status_tagihan !== 'lunas' && (
-                            <button
-                              onClick={() => handleBayarUKT(t.id_tagihan, t.nominal)}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-sm"
-                            >
-                              Bayar UKT Live
-                            </button>
-                          )}
+                            {t.status_tagihan !== 'lunas' && (
+                              <button
+                                onClick={() => handleBayarUKT(t.id_tagihan, t.nominal)}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-sm"
+                              >
+                                Bayar UKT Live
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Perkembangan Akademik & Kehadiran (Kriteria 2.3 Aturan Bisnis) */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                  <h2 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <span>📚</span> Progress Akademik & Presensi
+                  </h2>
+                  <p className="text-xs text-slate-400 mb-6">Mata kuliah yang diambil pada KRS aktif, beserta akumulasi nilai dan kehadiran.</p>
+
+                  {academicLoading ? (
+                    <p className="text-sm text-slate-400">Memuat progress akademik...</p>
+                  ) : academicDetails.length === 0 ? (
+                    <p className="text-sm text-slate-500">Belum ada mata kuliah yang didaftarkan di KRS mahasiswa ini.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {academicDetails.map((ad) => {
+                        const totalPertemuan = ad.total_pertemuan || 0;
+                        const totalHadir = ad.total_hadir || 0;
+                        const attendancePercent = totalPertemuan > 0 ? Math.round((totalHadir / totalPertemuan) * 100) : 100;
+                        const attendanceMinMet = attendancePercent >= 75;
+
+                        return (
+                          <div
+                            key={ad.id_detail_krs}
+                            className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-sm text-slate-800">{ad.nama_mata_kuliah}</span>
+                                <span className="text-[10px] bg-slate-100 font-mono px-2 py-0.5 rounded text-slate-500">
+                                  {ad.kode_kelas}
+                                </span>
+                                <span className="text-[10px] bg-indigo-50 font-semibold px-2 py-0.5 rounded text-indigo-700">
+                                  {ad.sks} SKS
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-400 mt-1">Dosen: {ad.nama_dosen}</p>
+                              
+                              {/* Detail Nilai */}
+                              <div className="mt-3 grid grid-cols-4 gap-2 text-center bg-white p-2.5 rounded-lg border border-slate-100/80">
+                                <div>
+                                  <p className="text-[9px] font-semibold text-slate-400 uppercase">Tugas</p>
+                                  <p className="text-xs font-bold text-slate-700">{ad.nilai_tugas}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] font-semibold text-slate-400 uppercase">UTS</p>
+                                  <p className="text-xs font-bold text-slate-700">{ad.nilai_uts}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[9px] font-semibold text-slate-400 uppercase">UAS</p>
+                                  <p className="text-xs font-bold text-slate-700">{ad.nilai_uas}</p>
+                                </div>
+                                <div className="border-l border-slate-100">
+                                  <p className="text-[9px] font-semibold text-slate-400 uppercase">Akhir</p>
+                                  <p className="text-xs font-extrabold text-indigo-600">{ad.nilai_akhir_angka}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col md:items-end gap-2 md:min-w-40 border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-4">
+                              {/* Huruf Mutu */}
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] text-slate-400">Mutu:</span>
+                                <span className={`px-2 py-0.5 text-xs font-black rounded ${ad.nilai_akhir_huruf === 'A' || ad.nilai_akhir_huruf === 'B' || ad.nilai_akhir_huruf === 'C' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                                  {ad.nilai_akhir_huruf || "Belum"}
+                                </span>
+                              </div>
+
+                              {/* Kehadiran */}
+                              <div className="flex flex-col md:items-end w-full">
+                                <div className="flex items-center gap-1.5 md:justify-end">
+                                  <span className="text-[10px] text-slate-400">Kehadiran:</span>
+                                  <span className={`text-xs font-bold ${attendanceMinMet ? "text-emerald-600" : "text-amber-500"}`}>
+                                    {attendancePercent}%
+                                  </span>
+                                </div>
+                                <span className="text-[9px] text-slate-400 font-mono md:text-right block">
+                                  {totalHadir} / {totalPertemuan} Pertemuan
+                                </span>
+                                {/* Mini progress bar */}
+                                <div className="w-full bg-slate-100 rounded-full h-1 mt-1.5 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full ${attendanceMinMet ? "bg-emerald-500" : "bg-amber-500"}`}
+                                    style={{ width: `${attendancePercent}%` }}
+                                  ></div>
+                                </div>
+                                {!attendanceMinMet && (
+                                  <span className="text-[8px] text-amber-500 font-semibold mt-1 block md:text-right">
+                                    ⚠️ Di bawah 75%
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

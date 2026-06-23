@@ -13,6 +13,8 @@ const KrsDetailSchema = z.object({
   nama_mata_kuliah: z.string().optional(),
   sks: z.number().optional(),
   nama_dosen: z.string().optional(),
+  total_pertemuan: z.number().optional(),
+  total_hadir: z.number().optional(),
 });
 
 const KrsResponseSchema = z.object({

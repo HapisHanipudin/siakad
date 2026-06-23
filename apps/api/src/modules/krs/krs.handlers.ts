@@ -51,7 +51,7 @@ export const getKrsHandler: RouteHandler<
       };
     }
 
-    // 2. Dapatkan detail mata kuliah di KRS tersebut
+    // 2. Dapatkan detail mata kuliah di KRS tersebut beserta kehadiran
     const detailResult = await client.query(`
       SELECT 
         dk.id_detail_krs, 
@@ -65,7 +65,9 @@ export const getKrsHandler: RouteHandler<
         kl.kode_kelas,
         mk.nama_mata_kuliah,
         mk.sks,
-        ds.nama_dosen
+        ds.nama_dosen,
+        (SELECT COUNT(*) FROM pertemuan pt WHERE pt.id_kelas = kl.id_kelas)::INTEGER AS total_pertemuan,
+        (SELECT COUNT(*) FROM presensi pr WHERE pr.id_detail_krs = dk.id_detail_krs AND pr.status_presensi = 'hadir')::INTEGER AS total_hadir
       FROM detail_krs dk
       JOIN kelas kl ON dk.id_kelas = kl.id_kelas
       JOIN mata_kuliah mk ON kl.id_mata_kuliah = mk.id_mata_kuliah
@@ -81,6 +83,8 @@ export const getKrsHandler: RouteHandler<
       nilai_uts: Number(row.nilai_uts),
       nilai_uas: Number(row.nilai_uas),
       nilai_akhir_angka: Number(row.nilai_akhir_angka),
+      total_pertemuan: Number(row.total_pertemuan || 0),
+      total_hadir: Number(row.total_hadir || 0),
     }));
 
     return c.json({
