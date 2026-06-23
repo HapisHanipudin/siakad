@@ -10,7 +10,7 @@ export const getMahasiswaHandler: RouteHandler<
 > = async (c) => {
   const env = getValidatedEnv(c.env);
   const client = createDb(env);
-  const { page, limit } = c.req.valid("query");
+  const { page, limit, search } = c.req.valid("query");
   
   const pageNum = parseInt(page, 10) || 1;
   const limitNum = parseInt(limit, 10) || 10;
@@ -18,12 +18,10 @@ export const getMahasiswaHandler: RouteHandler<
 
   await client.connect();
   try {
-    // 1. Dapatkan total count mahasiswa
-    const countResult = await client.query("SELECT COUNT(*) FROM mahasiswa");
-    const total = parseInt(countResult.rows[0].count, 10);
+    let countResult;
+    let result;
 
-    // 2. Dapatkan data mahasiswa dengan LIMIT dan OFFSET
-    const result = await client.query(`
+    const baseDataQuery = `
       SELECT 
         m.id_mahasiswa, 
         m.nim, 
@@ -38,9 +36,34 @@ export const getMahasiswaHandler: RouteHandler<
       FROM mahasiswa m 
       LEFT JOIN program_studi ps ON m.id_program_studi = ps.id_program_studi 
       LEFT JOIN users u ON m.id_mahasiswa = u.id_mahasiswa
-      ORDER BY m.id_mahasiswa DESC
-      LIMIT $1 OFFSET $2
-    `, [limitNum, offset]);
+    `;
+
+    if (search) {
+      const searchPattern = `%${search}%`;
+      countResult = await client.query(
+        "SELECT COUNT(*) FROM mahasiswa WHERE nama_mahasiswa ILIKE $1 OR nim ILIKE $1",
+        [searchPattern]
+      );
+      result = await client.query(
+        baseDataQuery + `
+          WHERE m.nama_mahasiswa ILIKE $3 OR m.nim ILIKE $3
+          ORDER BY m.id_mahasiswa DESC
+          LIMIT $1 OFFSET $2
+        `,
+        [limitNum, offset, searchPattern]
+      );
+    } else {
+      countResult = await client.query("SELECT COUNT(*) FROM mahasiswa");
+      result = await client.query(
+        baseDataQuery + `
+          ORDER BY m.id_mahasiswa DESC
+          LIMIT $1 OFFSET $2
+        `,
+        [limitNum, offset]
+      );
+    }
+
+    const total = parseInt(countResult.rows[0].count, 10);
     
     return c.json({
       data: result.rows,

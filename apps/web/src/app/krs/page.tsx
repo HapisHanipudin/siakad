@@ -19,10 +19,18 @@ export default function KrsPortal() {
   const [mhsPage, setMhsPage] = useState(1);
   const [mhsTotalPages, setMhsTotalPages] = useState(1);
   const mhsLimit = 5;
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchMahasiswa = async (currentPage: number) => {
+  const fetchMahasiswa = async (currentPage: number, search: string) => {
     try {
-      const res = await fetch(`${API_URL}/mahasiswa?page=${currentPage}&limit=${mhsLimit}`);
+      const queryParams = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: mhsLimit.toString(),
+      });
+      if (search) {
+        queryParams.append("search", search);
+      }
+      const res = await fetch(`${API_URL}/mahasiswa?${queryParams.toString()}`);
       if (res.ok) {
         const result = await res.json() as any;
         setMahasiswaList(result.data || []);
@@ -37,8 +45,13 @@ export default function KrsPortal() {
   };
 
   useEffect(() => {
-    fetchMahasiswa(mhsPage);
-  }, [mhsPage]);
+    fetchMahasiswa(mhsPage, searchQuery);
+  }, [mhsPage, searchQuery]);
+
+  const handleSearchChange = (val: string) => {
+    setSearchQuery(val);
+    setMhsPage(1);
+  };
 
   // Load available classes initially
   const initPortal = async () => {
@@ -166,22 +179,45 @@ export default function KrsPortal() {
               <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
                 <span>🎓</span> Pilih Mahasiswa Aktif
               </h2>
-              <p className="text-xs text-slate-400 mb-6">Pilih mahasiswa di bawah untuk mengisi KRS semester Genap 2025/2026.</p>
+              <p className="text-xs text-slate-400 mb-4">Pilih mahasiswa di bawah untuk mengisi KRS semester Genap 2025/2026.</p>
+
+              {/* Search Bar */}
+              <div className="mb-4 relative">
+                <input
+                  type="text"
+                  placeholder="Cari nama / NIM..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="w-full pl-3.5 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm placeholder-slate-400 bg-slate-50/50"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => handleSearchChange("")}
+                    className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-sm font-semibold"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
 
               <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                {mahasiswaList.map((m) => (
-                  <div
-                    key={m.id_mahasiswa}
-                    onClick={() => handleSelectMhs(m)}
-                    className={`p-3 rounded-xl border transition-all cursor-pointer ${selectedMhs?.id_mahasiswa === m.id_mahasiswa ? "border-indigo-500 bg-indigo-50/30 shadow-sm" : "border-slate-100 hover:bg-slate-50"}`}
-                  >
-                    <p className="font-semibold text-slate-800 text-sm">{m.nama_mahasiswa}</p>
-                    <div className="flex justify-between items-center mt-1 text-xs text-slate-400 font-mono">
-                      <span>NIM: {m.nim}</span>
-                      <span className="font-sans px-2 py-0.5 bg-slate-100 rounded text-slate-600">{m.nama_prodi || "Informatika"}</span>
+                {mahasiswaList.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-6">Mahasiswa tidak ditemukan.</p>
+                ) : (
+                  mahasiswaList.map((m) => (
+                    <div
+                      key={m.id_mahasiswa}
+                      onClick={() => handleSelectMhs(m)}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer ${selectedMhs?.id_mahasiswa === m.id_mahasiswa ? "border-indigo-500 bg-indigo-50/30 shadow-sm" : "border-slate-100 hover:bg-slate-50"}`}
+                    >
+                      <p className="font-semibold text-slate-800 text-sm">{m.nama_mahasiswa}</p>
+                      <div className="flex justify-between items-center mt-1 text-xs text-slate-400 font-mono">
+                        <span>NIM: {m.nim}</span>
+                        <span className="font-sans px-2 py-0.5 bg-slate-100 rounded text-slate-600">{m.nama_prodi || "Informatika"}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
 
               {/* Student Pagination Controls */}
