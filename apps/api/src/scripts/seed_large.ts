@@ -130,14 +130,6 @@ async function seed() {
     await client.query("BEGIN");
 
     // ==========================================
-    // 0. TEMPORARILY DISABLE OPERATIONAL TRIGGERS
-    // ==========================================
-    console.log("🔓 Temporarily disabling operational triggers to prevent seeding failures...");
-    await client.query("ALTER TABLE detail_krs DISABLE TRIGGER trg_cek_prasyarat");
-    await client.query("ALTER TABLE detail_krs DISABLE TRIGGER trg_update_kuota_kelas");
-    await client.query("ALTER TABLE kelas DISABLE TRIGGER trg_cek_jadwal_dosen");
-
-    // ==========================================
     // 1. FETCH EXISTING MASTER DATA (NO TRUNCATE)
     // ==========================================
     console.log("🔍 Fetching existing static master data arrays...");
@@ -288,7 +280,6 @@ async function seed() {
     });
 
     const kelasRows: any[][] = [];
-    const prodiKelasMap = new Map<number, number[]>();
     const lecturerSchedule = new Map<number, Set<string>>();
     let classCounter = 1;
 
@@ -302,6 +293,7 @@ async function seed() {
 
       mkIds.forEach(idMk => {
         const ru = getRandomElement(ruangans);
+        // Make sure class quota doesn't exceed room capacity
         const kuota = Math.min(150, ru.kapasitas);
 
         // Find conflict-free schedule for lecturer
@@ -360,9 +352,52 @@ async function seed() {
       kelasRows
     );
 
-    kelases.forEach(kls => {
-      if (!prodiKelasMap.has(kls.id_program_studi)) prodiKelasMap.set(kls.id_program_studi, []);
-      prodiKelasMap.get(kls.id_program_studi)!.push(kls.id_kelas);
+    // ==========================================
+    // 3. FETCH ALL CLASSES (NEW & EXISTING) & TRACK ENROLLMENT & PREREQUISITES
+    // ==========================================
+    console.log("🔍 Loading comprehensive class and prerequisite schemas...");
+    const allKelasesRes = await client.query("SELECT id_kelas, id_mata_kuliah, kuota, id_program_studi FROM kelas");
+    const classMap = new Map<number, { id_kelas: number, id_mata_kuliah: number, kuota: number, id_program_studi: number }>();
+    const mkToClassMap = new Map<number, number[]>();
+    
+    allKelasesRes.rows.forEach(k => {
+      classMap.set(Number(k.id_kelas), {
+        id_kelas: Number(k.id_kelas),
+        id_mata_kuliah: Number(k.id_mata_kuliah),
+        kuota: Number(k.kuota),
+        id_program_studi: Number(k.id_program_studi)
+      });
+      if (!mkToClassMap.has(Number(k.id_mata_kuliah))) {
+        mkToClassMap.set(Number(k.id_mata_kuliah), []);
+      }
+      mkToClassMap.get(Number(k.id_mata_kuliah))!.push(Number(k.id_kelas));
+    });
+
+    const prodiKelasMap = new Map<number, number[]>();
+    allKelasesRes.rows.forEach(k => {
+      const prodiId = Number(k.id_program_studi);
+      if (!prodiKelasMap.has(prodiId)) {
+        prodiKelasMap.set(prodiId, []);
+      }
+      prodiKelasMap.get(prodiId)!.push(Number(k.id_kelas));
+    });
+
+    // Query active prerequisites dynamically
+    const prereqRes = await client.query("SELECT id_mata_kuliah, id_prasyarat_mata_kuliah FROM prasyarat_mata_kuliah");
+    const prerequisitesMap = new Map<number, number>();
+    prereqRes.rows.forEach(r => {
+      prerequisitesMap.set(Number(r.id_mata_kuliah), Number(r.id_prasyarat_mata_kuliah));
+    });
+
+    // Fetch initial enrollment counts per class from database
+    const enrollmentCountsRes = await client.query(`
+      SELECT id_kelas, COUNT(*) as count 
+      FROM detail_krs 
+      GROUP BY id_kelas
+    `);
+    const classEnrolledCount = new Map<number, number>();
+    enrollmentCountsRes.rows.forEach(r => {
+      classEnrolledCount.set(Number(r.id_kelas), Number(r.count));
     });
 
     // Dynamic KRS (for each student)
@@ -376,9 +411,10 @@ async function seed() {
     ]);
     const krses = await bulkInsert(client, "krs", ["id_mahasiswa", "id_tahun_ajaran", "semester_aktif", "status_krs", "catatan"], krsRows);
 
-    // Dynamic Detail KRS (enrolling each student in 2-4 prodi classes)
-    console.log("⏳ Seeding dynamic detail KRS...");
+    // Dynamic Detail KRS (enrolling each student in 2-4 prodi classes, respecting prerequisites and quotas)
+    console.log("⏳ Seeding dynamic detail KRS complying with triggers...");
     const detailKrsRows: any[][] = [];
+
     mahasiswas.forEach(m => {
       const krsRecord = krses.find(k => k.id_mahasiswa === m.id_mahasiswa);
       if (!krsRecord) return;
@@ -386,21 +422,72 @@ async function seed() {
       const prodiClasses = prodiKelasMap.get(m.id_program_studi) || [];
       if (prodiClasses.length === 0) return;
 
-      const numClasses = getRandomInt(2, 4);
-      const chosenClasses = new Set<number>();
-      let attempts = 0;
-      while (chosenClasses.size < Math.min(numClasses, prodiClasses.length) && attempts < 10) {
-        chosenClasses.add(getRandomElement(prodiClasses));
-        attempts++;
+      const studentEnrollments = new Set<number>();
+      const shuffledProdiClasses = [...prodiClasses].sort(() => Math.random() - 0.5);
+
+      for (const classId of shuffledProdiClasses) {
+        if (studentEnrollments.size >= 4) break;
+        if (studentEnrollments.has(classId)) continue;
+
+        const kls = classMap.get(classId);
+        if (!kls) continue;
+
+        // Check current class quota
+        const currentCount = classEnrolledCount.get(classId) || 0;
+        if (currentCount >= kls.kuota) continue;
+
+        const prereqMkId = prerequisitesMap.get(kls.id_mata_kuliah);
+        if (prereqMkId !== undefined) {
+          // If this class has a prerequisite course, we MUST find a valid prerequisite class with open quota
+          const prereqClassIds = mkToClassMap.get(prereqMkId) || [];
+          let foundPrereqClassId: number | null = null;
+          for (const pId of prereqClassIds) {
+            const pKlsObj = classMap.get(pId);
+            if (pKlsObj) {
+              const pCount = classEnrolledCount.get(pId) || 0;
+              if (pCount < pKlsObj.kuota) {
+                foundPrereqClassId = pId;
+                break;
+              }
+            }
+          }
+
+          if (foundPrereqClassId !== null) {
+            // Enroll in both prerequisite class and advanced class
+            studentEnrollments.add(foundPrereqClassId);
+            studentEnrollments.add(classId);
+
+            // Increment local quota maps
+            classEnrolledCount.set(foundPrereqClassId, (classEnrolledCount.get(foundPrereqClassId) || 0) + 1);
+            classEnrolledCount.set(classId, (classEnrolledCount.get(classId) || 0) + 1);
+          }
+        } else {
+          // No prerequisite, enroll directly
+          studentEnrollments.add(classId);
+          classEnrolledCount.set(classId, currentCount + 1);
+        }
       }
 
-      chosenClasses.forEach(classId => {
+      studentEnrollments.forEach(classId => {
         const tugas = getRandomInt(65, 95);
         const uts = getRandomInt(60, 90);
         const uas = getRandomInt(60, 95);
         const { finalScore, letter } = calculateGrade(tugas, uts, uas);
         detailKrsRows.push([krsRecord.id_krs, classId, tugas, uts, uas, finalScore, letter]);
       });
+    });
+
+    // CRITICAL: Sort inserts so Level 0 (prerequisites) are inserted BEFORE Level 1 (advanced courses)
+    detailKrsRows.sort((rowA, rowB) => {
+      const classIdA = rowA[1];
+      const classIdB = rowB[1];
+      const classA = classMap.get(classIdA);
+      const classB = classMap.get(classIdB);
+      const mkA = classA ? classA.id_mata_kuliah : 0;
+      const mkB = classB ? classB.id_mata_kuliah : 0;
+      const isPrereqA = prerequisitesMap.has(mkA) ? 1 : 0;
+      const isPrereqB = prerequisitesMap.has(mkB) ? 1 : 0;
+      return isPrereqA - isPrereqB; // 0 before 1
     });
 
     const details = await bulkInsert(
@@ -493,16 +580,8 @@ async function seed() {
     });
     await bulkInsert(client, "pengumuman", ["id_program_studi", "id_user", "isi_pengumuman", "target", "tanggal_berakhir"], pengumumanRows);
 
-    // ==========================================
-    // 3. RE-ENABLE TRIGGERS & COMMIT
-    // ==========================================
-    console.log("🔒 Re-enabling operational triggers...");
-    await client.query("ALTER TABLE detail_krs ENABLE TRIGGER trg_cek_prasyarat");
-    await client.query("ALTER TABLE detail_krs ENABLE TRIGGER trg_update_kuota_kelas");
-    await client.query("ALTER TABLE kelas ENABLE TRIGGER trg_cek_jadwal_dosen");
-
     await client.query("COMMIT");
-    console.log("🎉 SUCCESS: Append-only seeding completed successfully inside transaction!");
+    console.log("🎉 SUCCESS: Append-only seeding completed successfully inside transaction complying with all triggers!");
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("❌ ERROR: Seeding failed, transaction rolled back.");
