@@ -39,7 +39,7 @@ const isOriginAllowed = (origin: string, pattern: string): boolean => {
 };
 
 export const corsMiddleware = cors({
-  origin: (origin, c) => {
+  origin: (origin: any, c: any) => {
     if (!origin) {
       return "";
     }
