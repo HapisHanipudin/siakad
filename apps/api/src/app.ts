@@ -9,6 +9,7 @@ import { krsRoutes } from "./modules/krs";
 import { kelasRoutes } from "./modules/kelas";
 import { nilaiRoutes } from "./modules/nilai";
 import { pembayaranRoutes } from "./modules/pembayaran";
+import { laporanRoutes } from "./modules/laporan";
 
 const app = createRouter();
 
@@ -29,6 +30,7 @@ app.route("/", krsRoutes);
 app.route("/", kelasRoutes);
 app.route("/", nilaiRoutes);
 app.route("/", pembayaranRoutes);
+app.route("/", laporanRoutes);
 
 app.get("/dashboard-stats", async (c) => {
   const env = getValidatedEnv(c.env);
