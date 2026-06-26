@@ -14,11 +14,11 @@ BEGIN;
     -- Tambahkan mata kuliah ke detail KRS Citra (id_krs=5)
     -- Trigger T-02 otomatis cek prasyarat
     -- Trigger T-03 otomatis kurangi kuota kelas
-    INSERT INTO detail_krs (id_krs, id_kelas, nilai_tugas, nilai_uts, nilai_uas, nilai_akhir_angka)
-    VALUES (5, 5, 0.00, 0.00, 0.00, 0.00);  -- SI-A-PSI
+    INSERT INTO detail_krs (id_krs, id_kelas, nilai_tugas, nilai_uts, nilai_uas)
+    VALUES (5, 5, 0.00, 0.00, 0.00);  -- SI-A-PSI
 
-    INSERT INTO detail_krs (id_krs, id_kelas, nilai_tugas, nilai_uts, nilai_uas, nilai_akhir_angka)
-    VALUES (5, 6, 0.00, 0.00, 0.00, 0.00);  -- SI-A-BD
+    INSERT INTO detail_krs (id_krs, id_kelas, nilai_tugas, nilai_uts, nilai_uas)
+    VALUES (5, 6, 0.00, 0.00, 0.00);  -- SI-A-BD
 
     -- Ubah status KRS dari menunggu → sah setelah semua MK ditambahkan
     UPDATE krs

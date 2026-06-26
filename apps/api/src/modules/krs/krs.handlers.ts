@@ -151,6 +151,13 @@ export const createKrsHandler: RouteHandler<
 
     await client.query("BEGIN");
 
+    // Skenario 1: Lock targeted kelas rows to secure their kuota from concurrent bookings
+    if (id_kelas_list && id_kelas_list.length > 0) {
+      await client.query(`
+        SELECT id_kelas, kuota FROM kelas WHERE id_kelas = ANY($1) FOR UPDATE
+      `, [id_kelas_list]);
+    }
+
     // 1. Cari atau buat header KRS
     let krsResult = await client.query(`
       SELECT id_krs, status_krs FROM krs 
