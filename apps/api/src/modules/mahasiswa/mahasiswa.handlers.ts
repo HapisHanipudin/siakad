@@ -2,7 +2,7 @@ import type { RouteHandler } from "@hono/zod-openapi";
 import { createDb } from "../../db";
 import { getValidatedEnv } from "../../env";
 import type { AppEnv } from "../../factory";
-import { getMahasiswaRoute, createMahasiswaRoute } from "./mahasiswa.routes";
+import { getMahasiswaRoute, createMahasiswaRoute, getProgramStudiRoute, getKurikulumRoute, getKelompokRoute } from "./mahasiswa.routes";
 
 export const getMahasiswaHandler: RouteHandler<
   typeof getMahasiswaRoute,
@@ -156,3 +156,65 @@ export const createMahasiswaHandler: RouteHandler<
     await client.end();
   }
 };
+
+export const getProgramStudiHandler: RouteHandler<
+  typeof getProgramStudiRoute,
+  AppEnv
+> = async (c) => {
+  const env = getValidatedEnv(c.env);
+  const client = createDb(env);
+
+  await client.connect();
+  try {
+    const result = await client.query(`
+      SELECT id_program_studi, nama_prodi, jenjang
+      FROM program_studi
+      ORDER BY nama_prodi ASC
+    `);
+    return c.json(result.rows, 200);
+  } finally {
+    await client.end();
+  }
+};
+
+export const getKurikulumHandler: RouteHandler<
+  typeof getKurikulumRoute,
+  AppEnv
+> = async (c) => {
+  const env = getValidatedEnv(c.env);
+  const client = createDb(env);
+
+  await client.connect();
+  try {
+    const result = await client.query(`
+      SELECT id_kurikulum, id_program_studi, nama_kurikulum
+      FROM kurikulum
+      ORDER BY nama_kurikulum ASC
+    `);
+    return c.json(result.rows, 200);
+  } finally {
+    await client.end();
+  }
+};
+
+export const getKelompokHandler: RouteHandler<
+  typeof getKelompokRoute,
+  AppEnv
+> = async (c) => {
+  const env = getValidatedEnv(c.env);
+  const client = createDb(env);
+
+  await client.connect();
+  try {
+    const result = await client.query(`
+      SELECT k.id_kelompok, k.id_dosen, k.kode_kelompok, r.id_program_studi
+      FROM kelompok k
+      JOIN rombel r ON k.id_rombel = r.id_rombel
+      ORDER BY k.kode_kelompok ASC
+    `);
+    return c.json(result.rows, 200);
+  } finally {
+    await client.end();
+  }
+};
+

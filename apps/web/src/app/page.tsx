@@ -62,7 +62,7 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 hover:shadow-md transition-shadow">
             <div className="flex justify-between items-center mb-4">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Mahasiswa</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Mahasiswa Aktif</span>
               <span className="p-2 bg-blue-50 text-blue-600 rounded-xl">👥</span>
             </div>
             <p className="text-3xl font-extrabold text-slate-800">

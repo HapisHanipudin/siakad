@@ -93,3 +93,74 @@ export const createMahasiswaRoute = createRoute({
     },
   },
 });
+
+const ProgramStudiSchema = z.object({
+  id_program_studi: z.number(),
+  nama_prodi: z.string(),
+  jenjang: z.string(),
+});
+
+const KurikulumSchema = z.object({
+  id_kurikulum: z.number(),
+  id_program_studi: z.number(),
+  nama_kurikulum: z.string(),
+});
+
+const KelompokSchema = z.object({
+  id_kelompok: z.number(),
+  id_dosen: z.number(),
+  kode_kelompok: z.string(),
+  id_program_studi: z.number(),
+});
+
+export const getProgramStudiRoute = createRoute({
+  method: "get",
+  path: "/options/program-studi",
+  tags: ["Mahasiswa Options"],
+  summary: "Dapatkan semua program studi untuk opsi input",
+  responses: {
+    200: {
+      description: "Daftar program studi",
+      content: {
+        "application/json": {
+          schema: z.array(ProgramStudiSchema),
+        },
+      },
+    },
+  },
+});
+
+export const getKurikulumRoute = createRoute({
+  method: "get",
+  path: "/options/kurikulum",
+  tags: ["Mahasiswa Options"],
+  summary: "Dapatkan semua kurikulum untuk opsi input",
+  responses: {
+    200: {
+      description: "Daftar kurikulum",
+      content: {
+        "application/json": {
+          schema: z.array(KurikulumSchema),
+        },
+      },
+    },
+  },
+});
+
+export const getKelompokRoute = createRoute({
+  method: "get",
+  path: "/options/kelompok",
+  tags: ["Mahasiswa Options"],
+  summary: "Dapatkan semua kelompok untuk opsi input",
+  responses: {
+    200: {
+      description: "Daftar kelompok",
+      content: {
+        "application/json": {
+          schema: z.array(KelompokSchema),
+        },
+      },
+    },
+  },
+});
+

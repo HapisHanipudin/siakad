@@ -15,6 +15,11 @@ export default function MahasiswaPortal() {
   const [academicDetails, setAcademicDetails] = useState<any[]>([]);
   const [academicLoading, setAcademicLoading] = useState(false);
 
+  // Option lists
+  const [prodiList, setProdiList] = useState<any[]>([]);
+  const [kurikulumList, setKurikulumList] = useState<any[]>([]);
+  const [kelompokList, setKelompokList] = useState<any[]>([]);
+
   // Pagination states
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -31,6 +36,53 @@ export default function MahasiswaPortal() {
   const [kurikulum, setKurikulum] = useState(1);
   const [kelompok, setKelompok] = useState(1);
   const [angkatan, setAngkatan] = useState(2025);
+
+  const loadOptions = async () => {
+    try {
+      const [pRes, kRes, klRes] = await Promise.all([
+        fetch(`${API_URL}/options/program-studi`),
+        fetch(`${API_URL}/options/kurikulum`),
+        fetch(`${API_URL}/options/kelompok`),
+      ]);
+      const pData = await pRes.json() as any[];
+      const kData = await kRes.json() as any[];
+      const klData = await klRes.json() as any[];
+
+      setProdiList(pData || []);
+      setKurikulumList(kData || []);
+      setKelompokList(klData || []);
+
+      // Auto-set defaults based on first prodi
+      if (pData && pData.length > 0) {
+        const initialProdi = pData[0].id_program_studi;
+        setProdi(initialProdi);
+
+        const firstKur = kData.find((k: any) => k.id_program_studi === initialProdi);
+        if (firstKur) setKurikulum(firstKur.id_kurikulum);
+
+        const firstKlp = klData.find((kl: any) => kl.id_program_studi === initialProdi);
+        if (firstKlp) setKelompok(firstKlp.id_kelompok);
+      }
+    } catch (err) {
+      console.error("Gagal memuat opsi mahasiswa:", err);
+    }
+  };
+
+  const handleProdiChange = (selectedProdiId: number) => {
+    setProdi(selectedProdiId);
+    
+    // Find compatible kurikulum
+    const firstKur = kurikulumList.find((k: any) => k.id_program_studi === selectedProdiId);
+    if (firstKur) setKurikulum(firstKur.id_kurikulum);
+
+    // Find compatible kelompok
+    const firstKlp = kelompokList.find((kl: any) => kl.id_program_studi === selectedProdiId);
+    if (firstKlp) setKelompok(firstKlp.id_kelompok);
+  };
+
+  useEffect(() => {
+    loadOptions();
+  }, []);
 
   const fetchMahasiswa = async (currentPage = page, search = searchQuery) => {
     setLoading(true);
@@ -243,12 +295,12 @@ export default function MahasiswaPortal() {
                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Program Studi</label>
                   <select
                     value={prodi}
-                    onChange={(e) => setProdi(Number(e.target.value))}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none"
+                    onChange={(e) => handleProdiChange(Number(e.target.value))}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none text-xs"
                   >
-                    <option value={1}>Informatika</option>
-                    <option value={2}>Sistem Informasi</option>
-                    <option value={3}>Manajemen</option>
+                    {prodiList.map((p) => (
+                      <option key={p.id_program_studi} value={p.id_program_studi}>{p.nama_prodi}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -256,10 +308,38 @@ export default function MahasiswaPortal() {
                   <select
                     value={angkatan}
                     onChange={(e) => setAngkatan(Number(e.target.value))}
-                    className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none"
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none text-xs"
                   >
                     <option value={2025}>2025</option>
                     <option value={2024}>2024</option>
+                    <option value={2026}>2026</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Kurikulum</label>
+                  <select
+                    value={kurikulum}
+                    onChange={(e) => setKurikulum(Number(e.target.value))}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none text-xs"
+                  >
+                    {kurikulumList.filter((k: any) => k.id_program_studi === prodi).map((k) => (
+                      <option key={k.id_kurikulum} value={k.id_kurikulum}>{k.nama_kurikulum}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Kelompok Pembimbing</label>
+                  <select
+                    value={kelompok}
+                    onChange={(e) => setKelompok(Number(e.target.value))}
+                    className="w-full px-4 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none text-xs"
+                  >
+                    {kelompokList.filter((kl: any) => kl.id_program_studi === prodi).map((kl) => (
+                      <option key={kl.id_kelompok} value={kl.id_kelompok}>{kl.kode_kelompok}</option>
+                    ))}
                   </select>
                 </div>
               </div>
