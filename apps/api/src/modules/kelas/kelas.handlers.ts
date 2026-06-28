@@ -2,7 +2,7 @@ import type { RouteHandler } from "@hono/zod-openapi";
 import { createDb } from "../../db";
 import { getValidatedEnv } from "../../env";
 import type { AppEnv } from "../../factory";
-import { getKelasRoute, createKelasRoute, getKelasCountRoute } from "./kelas.routes";
+import { getKelasRoute, createKelasRoute, getKelasCountRoute, getMataKuliahOptionsRoute, getRuanganOptionsRoute, getRombelOptionsRoute } from "./kelas.routes";
 
 export const getKelasHandler: RouteHandler<
   typeof getKelasRoute,
@@ -132,3 +132,64 @@ export const getKelasCountHandler: RouteHandler<
     await client.end();
   }
 };
+
+export const getMataKuliahOptionsHandler: RouteHandler<
+  typeof getMataKuliahOptionsRoute,
+  AppEnv
+> = async (c) => {
+  const env = getValidatedEnv(c.env);
+  const client = createDb(env);
+
+  await client.connect();
+  try {
+    const result = await client.query(`
+      SELECT id_mata_kuliah, kode_mata_kuliah, nama_mata_kuliah, sks
+      FROM mata_kuliah
+      ORDER BY nama_mata_kuliah ASC
+    `);
+    return c.json(result.rows, 200);
+  } finally {
+    await client.end();
+  }
+};
+
+export const getRuanganOptionsHandler: RouteHandler<
+  typeof getRuanganOptionsRoute,
+  AppEnv
+> = async (c) => {
+  const env = getValidatedEnv(c.env);
+  const client = createDb(env);
+
+  await client.connect();
+  try {
+    const result = await client.query(`
+      SELECT id_ruangan, nama_ruangan, kapasitas
+      FROM ruangan
+      ORDER BY nama_ruangan ASC
+    `);
+    return c.json(result.rows, 200);
+  } finally {
+    await client.end();
+  }
+};
+
+export const getRombelOptionsHandler: RouteHandler<
+  typeof getRombelOptionsRoute,
+  AppEnv
+> = async (c) => {
+  const env = getValidatedEnv(c.env);
+  const client = createDb(env);
+
+  await client.connect();
+  try {
+    const result = await client.query(`
+      SELECT id_rombel, id_program_studi, nama_rombel, angkatan
+      FROM rombel
+      ORDER BY nama_rombel ASC
+    `);
+    return c.json(result.rows, 200);
+  } finally {
+    await client.end();
+  }
+};
+

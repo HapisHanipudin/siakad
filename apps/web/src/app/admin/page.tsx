@@ -8,6 +8,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8787";
 export default function AdminPortal() {
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [dosenList, setDosenList] = useState<Dosen[]>([]);
+  const [mataKuliahList, setMataKuliahList] = useState<any[]>([]);
+  const [ruanganList, setRuanganList] = useState<any[]>([]);
+  const [rombelList, setRombelList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
 
@@ -27,14 +30,39 @@ export default function AdminPortal() {
 
   const loadAdminData = async () => {
     try {
-      const [kRes, dRes] = await Promise.all([
+      const [kRes, dRes, mkRes, rRes, romRes] = await Promise.all([
         fetch(`${API_URL}/kelas`),
-        fetch(`${API_URL}/dosen`),
+        fetch(`${API_URL}/dosen?limit=100`),
+        fetch(`${API_URL}/options/mata-kuliah`),
+        fetch(`${API_URL}/options/ruangan`),
+        fetch(`${API_URL}/options/rombel`),
       ]);
       const kData = await kRes.json() as any;
       const dData = await dRes.json() as any;
+      const mkData = await mkRes.json() as any;
+      const rData = await rRes.json() as any;
+      const romData = await romRes.json() as any;
+
       setKelasList(kData);
-      setDosenList(Array.isArray(dData) ? dData : dData.data || []);
+      const lecturers = Array.isArray(dData) ? dData : dData.data || [];
+      setDosenList(lecturers);
+      setMataKuliahList(mkData || []);
+      setRuanganList(rData || []);
+      setRombelList(romData || []);
+
+      // Initialize defaults on first load
+      if (loading) {
+        if (mkData && mkData.length > 0) setIdMk(mkData[0].id_mata_kuliah);
+        if (rData && rData.length > 0) {
+          setIdRuangan(rData[0].id_ruangan);
+          setKuota(rData[0].kapasitas);
+        }
+        if (romData && romData.length > 0) {
+          setIdRombel(romData[0].id_rombel);
+          setIdProdi(romData[0].id_program_studi);
+        }
+        if (lecturers && lecturers.length > 0) setIdDosen(lecturers[0].id_dosen);
+      }
     } catch (err) {
       console.error("Gagal memuat data admin:", err);
     } finally {
@@ -120,12 +148,13 @@ export default function AdminPortal() {
                   <select
                     value={idMk}
                     onChange={(e) => setIdMk(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none text-xs"
                   >
-                    <option value={3}>Sistem Basis Data (4 SKS)</option>
-                    <option value={1}>Dasar-Dasar Pemrograman (3 SKS)</option>
-                    <option value={4}>Pemrograman Web (3 SKS)</option>
-                    <option value={8}>Pengantar Manajemen (3 SKS)</option>
+                    {mataKuliahList.map((mk) => (
+                      <option key={mk.id_mata_kuliah} value={mk.id_mata_kuliah}>
+                        {mk.nama_mata_kuliah} ({mk.sks} SKS)
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -147,12 +176,19 @@ export default function AdminPortal() {
                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Ruangan</label>
                   <select
                     value={idRuangan}
-                    onChange={(e) => setIdRuangan(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none"
+                    onChange={(e) => {
+                      const selectedId = Number(e.target.value);
+                      setIdRuangan(selectedId);
+                      const foundR = ruanganList.find(r => r.id_ruangan === selectedId);
+                      if (foundR) setKuota(foundR.kapasitas);
+                    }}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none text-xs"
                   >
-                    <option value={3}>Laboratorium Basis Data (Kapasitas: 30)</option>
-                    <option value={1}>Ruang Teori 101 (Kapasitas: 40)</option>
-                    <option value={5}>Ruang FEB 201 (Kapasitas: 50)</option>
+                    {ruanganList.map((r) => (
+                      <option key={r.id_ruangan} value={r.id_ruangan}>
+                        {r.nama_ruangan} (Kapasitas: {r.kapasitas})
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -197,12 +233,19 @@ export default function AdminPortal() {
                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Rombel</label>
                   <select
                     value={idRombel}
-                    onChange={(e) => setIdRombel(Number(e.target.value))}
-                    className="w-full px-2 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none"
+                    onChange={(e) => {
+                      const selectedId = Number(e.target.value);
+                      setIdRombel(selectedId);
+                      const foundRombel = rombelList.find(r => r.id_rombel === selectedId);
+                      if (foundRombel) {
+                        setIdProdi(foundRombel.id_program_studi);
+                      }
+                    }}
+                    className="w-full px-2 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none text-xs"
                   >
-                    <option value={1}>IF-A 2025</option>
-                    <option value={2}>IF-B 2025</option>
-                    <option value={3}>SI-A 2025</option>
+                    {rombelList.map((r) => (
+                      <option key={r.id_rombel} value={r.id_rombel}>{r.nama_rombel}</option>
+                    ))}
                   </select>
                 </div>
               </div>

@@ -107,3 +107,75 @@ export const getKelasCountRoute = createRoute({
     },
   },
 });
+
+const MataKuliahSchema = z.object({
+  id_mata_kuliah: z.number(),
+  kode_mata_kuliah: z.string(),
+  nama_mata_kuliah: z.string(),
+  sks: z.number(),
+});
+
+const RuanganSchema = z.object({
+  id_ruangan: z.number(),
+  nama_ruangan: z.string(),
+  kapasitas: z.number(),
+});
+
+const RombelSchema = z.object({
+  id_rombel: z.number(),
+  id_program_studi: z.number(),
+  nama_rombel: z.string(),
+  angkatan: z.number(),
+});
+
+export const getMataKuliahOptionsRoute = createRoute({
+  method: "get",
+  path: "/options/mata-kuliah",
+  tags: ["Kelas Options"],
+  summary: "Dapatkan semua mata kuliah untuk opsi input",
+  responses: {
+    200: {
+      description: "Daftar mata kuliah",
+      content: {
+        "application/json": {
+          schema: z.array(MataKuliahSchema),
+        },
+      },
+    },
+  },
+});
+
+export const getRuanganOptionsRoute = createRoute({
+  method: "get",
+  path: "/options/ruangan",
+  tags: ["Kelas Options"],
+  summary: "Dapatkan semua ruangan untuk opsi input",
+  responses: {
+    200: {
+      description: "Daftar ruangan",
+      content: {
+        "application/json": {
+          schema: z.array(RuanganSchema),
+        },
+      },
+    },
+  },
+});
+
+export const getRombelOptionsRoute = createRoute({
+  method: "get",
+  path: "/options/rombel",
+  tags: ["Kelas Options"],
+  summary: "Dapatkan semua rombel untuk opsi input",
+  responses: {
+    200: {
+      description: "Daftar rombel",
+      content: {
+        "application/json": {
+          schema: z.array(RombelSchema),
+        },
+      },
+    },
+  },
+});
+
